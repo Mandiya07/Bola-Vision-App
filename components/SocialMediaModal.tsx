@@ -124,10 +124,10 @@ const SocialMediaModal: React.FC<SocialMediaModalProps> = ({ isOpen, onClose, ev
     };
 
     const handleDownloadImage = () => {
-        if (!generatedImage) return;
+        if (!generatedImage || !selectedEvent) return;
         const link = document.createElement('a');
         link.href = generatedImage;
-        const eventType = 'type' in selectedEvent! ? selectedEvent.type : (selectedEvent as GameEvent).type;
+        const eventType = selectedEvent.type;
         link.download = `BolaVision_${eventType}_${Date.now()}.jpg`;
         document.body.appendChild(link);
         link.click();

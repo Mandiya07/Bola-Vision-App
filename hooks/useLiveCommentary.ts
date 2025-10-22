@@ -189,7 +189,7 @@ export const useLiveCommentary = ({ isActive, matchState, videoRef, canvasRef, o
                                 setLiveTranscription(prev => prev.trim() + ' ');
                             }
                             
-                            const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData.data;
+                            const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData.data;
                             if (base64Audio) {
                                 setAudioStatus('playing');
                                 if (!outputAudioContextRef.current) {

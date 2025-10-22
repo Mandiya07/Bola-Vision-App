@@ -133,7 +133,7 @@ export const generateCommentary = async (event: GameEvent, matchState: MatchStat
                 systemInstruction: systemInstruction,
             }
         });
-        return { text: response.text.trim(), excitement };
+        return { text: (response.text || '').trim(), excitement };
     } catch (error) {
         console.error('Error generating commentary via proxy:', error);
         throw error;
@@ -237,7 +237,7 @@ export const analyzeVideoFrame = async (base64Frame: string, matchState: MatchSt
             }
         });
 
-        const jsonResponse = JSON.parse(response.text);
+        const jsonResponse = JSON.parse(response.text || '{}');
         
         if (jsonResponse && jsonResponse.event && jsonResponse.event !== 'NONE' && jsonResponse.teamName) {
             return {
@@ -305,7 +305,7 @@ export const analyzeRefereeDecision = async (base64Frame: string, event: GameEve
             }
         });
 
-        const result = JSON.parse(response.text);
+        const result = JSON.parse(response.text || '{}');
         return {
             recommendation: result.recommendation || 'Undetermined',
             reasoning: result.reasoning || 'Could not determine the outcome from the provided image.'
@@ -387,7 +387,7 @@ export const advancedFrameAnalysis = async (
             }
         });
         
-        const jsonResponse = JSON.parse(response.text);
+        const jsonResponse = JSON.parse(response.text || '{}');
         
         if (jsonResponse && jsonResponse.event && jsonResponse.event !== 'NONE' && jsonResponse.teamName) {
             return {
@@ -497,7 +497,7 @@ export const getTacticalSuggestion = async (base64Frame: string, matchState: Mat
             }
         });
         
-        return JSON.parse(response.text) as TacticalSuggestion;
+        return JSON.parse(response.text || '{}') as TacticalSuggestion;
     } catch(e) {
         console.error("Error generating tactical suggestion via proxy:", e);
         throw new Error("The AI tactician is currently unavailable.");
@@ -519,7 +519,7 @@ export const generatePreMatchHype = async (homeTeam: Team, awayTeam: Team): Prom
 
     try {
         const response: GenerateContentResponse = await callProxy('generateContent', { model, contents: prompt });
-        return response.text.trim();
+        return (response.text || '').trim();
     } catch (error) {
         console.error('Error generating pre-match hype via proxy:', error);
         throw new Error('Could not generate pre-match hype.');
@@ -587,7 +587,7 @@ export const generateSocialMediaPost = async (event: SocialPostEvent, matchState
     
     try {
         const response: GenerateContentResponse = await callProxy('generateContent', { model, contents: prompt });
-        return response.text.trim();
+        return (response.text || '').trim();
     } catch (error) {
         console.error('Error generating social media post via proxy:', error);
         throw new Error('Could not generate social media post.');
@@ -671,7 +671,7 @@ export const generatePlayerSpotlightText = async (player: Player, team: Team): P
             model,
             contents: prompt,
         });
-        return response.text.trim();
+        return (response.text || '').trim();
     } catch (error) {
         console.error('Error generating player spotlight text via proxy:', error);
         throw new Error('Could not generate player analysis.');
@@ -715,7 +715,7 @@ export const generateMatchSummary = async (matchState: MatchState): Promise<stri
     
     try {
         const response: GenerateContentResponse = await callProxy('generateContent', { model, contents: prompt });
-        return response.text.trim();
+        return (response.text || '').trim();
     } catch (error) {
         console.error('Error generating match summary via proxy:', error);
         throw new Error('Could not generate match summary.');
@@ -773,7 +773,7 @@ export const selectPlayerOfTheMatch = async (matchState: MatchState): Promise<{ 
             }
         });
         
-        const result = JSON.parse(response.text);
+        const result = JSON.parse(response.text || '{}');
         // Logic to find player from result remains the same.
         const allPlayers = [
             ...matchState.homeTeam.players.map(p => ({ ...p, teamName: matchState.homeTeam.name })),
@@ -816,7 +816,7 @@ export const translateText = async (text: string, targetLanguage: CommentaryLang
 
     try {
         const response: GenerateContentResponse = await callProxy('generateContent', { model, contents: prompt });
-        return response.text.trim();
+        return (response.text || '').trim();
     } catch (error) {
         console.error(`Error translating text via proxy to ${targetLanguage}:`, error);
         throw new Error("Translation failed.");
@@ -869,7 +869,7 @@ export const getWinProbability = async (matchState: MatchState): Promise<WinProb
             }
         });
 
-        const result = JSON.parse(response.text);
+        const result = JSON.parse(response.text || '{}');
         
         // Normalize probabilities to ensure they sum to 1
         const sum = result.home + result.away + result.draw;
@@ -936,7 +936,7 @@ export const generateHighlightReelSequence = async (highlights: Highlight[], mat
             }
         });
 
-        const result = JSON.parse(response.text);
+        const result = JSON.parse(response.text || '[]');
         if (Array.isArray(result) && result.every(item => typeof item === 'number')) {
             return result;
         } else {
@@ -981,7 +981,7 @@ export const generateHalfTimeAnalysis = async (matchState: MatchState, period: '
     
     try {
         const response: GenerateContentResponse = await callProxy('generateContent', { model, contents: prompt });
-        return response.text.trim();
+        return (response.text || '').trim();
     } catch (error) {
         console.error('Error generating half-time analysis via proxy:', error);
         throw new Error('Could not generate tactical analysis.');
