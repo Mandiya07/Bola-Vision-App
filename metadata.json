@@ -1,0 +1,8 @@
+{
+  "name": "BolaVision",
+  "description": "An AI-powered app to film, analyze, and stream football matches with professional-grade overlays, commentary, and statistics. It empowers local clubs, schools, and community teams to produce high-quality match broadcasts using just a smartphone or basic camera setup.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
