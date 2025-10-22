@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useMatchContext } from '../context/MatchContext';
 import { ShareIcon } from './icons/ControlIcons';
@@ -67,7 +66,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
     const handleShare = async () => {
         if (!publicMatchUrl || publicMatchUrl.startsWith('Error') || publicMatchUrl.startsWith('Match data')) return;
 
-        if (navigator.share) {
+        if ('share' in navigator) {
             try {
                 await navigator.share({
                     title: `Live Match: ${state.homeTeam.name} vs ${state.awayTeam.name}`,
@@ -103,7 +102,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
                         </div>
                     </div>
                     
-                    {navigator.share && (
+                    {'share' in navigator && (
                          <button onClick={handleShare} className="w-full bg-green-600 hover:bg-green-700 font-bold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2">
                             <ShareIcon className="w-5 h-5" />
                             Share via...
