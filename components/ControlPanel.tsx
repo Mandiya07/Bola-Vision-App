@@ -160,7 +160,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     if (type === 'PENALTY_SHOOTOUT_GOAL' || type === 'PENALTY_SHOOTOUT_MISS' || type === 'PENALTY_SHOOTOUT_SAVE') {
         if (state.penaltyShootout && selectedPlayer) {
             const teamSide = selectedTeam;
-// FIX: Corrected the type of 'outcomeMap' to only include penalty shootout event types, resolving a TypeScript error where the Record was missing other GameEventType keys.
             const outcomeMap: Record<'PENALTY_SHOOTOUT_GOAL' | 'PENALTY_SHOOTOUT_MISS' | 'PENALTY_SHOOTOUT_SAVE', PenaltyAttempt['outcome']> = {
                 'PENALTY_SHOOTOUT_GOAL': 'goal',
                 'PENALTY_SHOOTOUT_MISS': 'miss',
@@ -300,7 +299,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         onTeamChange={setSelectedTeam}
                         selectedPlayer={selectedPlayer}
                         onPlayerChange={setSelectedPlayer}
-// FIX: Removed redundant 'state.matchPeriod === "penaltyShootout"' check. This code path is only executed when the condition is false, making the check unnecessary and causing a type error.
                         disabled={false}
                     />
                     <EventButtons onLogEvent={handleLogEvent} disabled={!selectedPlayer} canLogInjury={state.injuryStoppage === null}/>

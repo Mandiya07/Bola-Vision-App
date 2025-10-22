@@ -73,7 +73,6 @@ const SubstitutionModal: React.FC<SubstitutionModalProps> = ({ onClose }) => {
             return;
         }
         
-// FIX: Add the missing 'stats' property to the new player object to satisfy the 'Player' type.
         const playerIn: Player = { 
             name: newPlayerName, 
             number: num, 
@@ -85,7 +84,6 @@ const SubstitutionModal: React.FC<SubstitutionModalProps> = ({ onClose }) => {
         dispatch({ type: 'SUBSTITUTE_PLAYER', payload: { team: selectedTeam, playerIn, playerOut } });
         
         // Process event for commentary
-        // FIX: Add missing id and matchTime properties to satisfy the GameEvent type.
         processGameEventWithCommentary({
             id: Date.now(),
             matchTime: state.matchTime,

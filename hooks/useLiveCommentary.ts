@@ -1,8 +1,13 @@
-// FIX: Import React to provide the 'React' namespace for types like React.RefObject.
-import React, { useState, useEffect, useRef } from 'react';
-import { GoogleGenAI, LiveSession, LiveServerMessage, Modality, Blob as GenAiBlob } from '@google/genai';
+import { useState, useEffect, useRef } from 'react';
+import { GoogleGenAI, LiveServerMessage, Modality, Blob as GenAiBlob } from '@google/genai';
 import type { MatchState, CommentaryStyle } from '../types';
 import { blobToBase64, decode, encode, decodeAudioData } from '../utils/mediaUtils';
+
+declare var process: {
+  env: {
+    API_KEY: string;
+  }
+};
 
 const FRAME_RATE = 2; // Send 2 frames per second for live analysis
 const JPEG_QUALITY = 0.6; // Lower quality to reduce payload size
@@ -29,7 +34,7 @@ export const useLiveCommentary = ({ isActive, matchState, videoRef, canvasRef, o
   const outputAudioContextRef = useRef<AudioContext | null>(null);
   const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const nextStartTimeRef = useRef(0);
-  const liveSessionPromiseRef = useRef<Promise<LiveSession> | null>(null);
+  const liveSessionPromiseRef = useRef<Promise<any> | null>(null);
   const microphoneStreamRef = useRef<MediaStream | null>(null);
   const frameIntervalRef = useRef<number | null>(null);
 

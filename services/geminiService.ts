@@ -109,7 +109,6 @@ export const generateCommentary = async (event: GameEvent, matchState: MatchStat
     Home team players: ${homePlayers}.
     Away team players: ${awayPlayers}.`;
     
-    // FIX: Populated the empty styleInstructions object to provide context for the AI commentator.
     const styleInstructions: Record<CommentaryStyle, string> = {
         professional: "You are an expert, world-class football (soccer) commentator. Your commentary must be dynamic, insightful, and reflect the current state of the match. You need to sound like a real person broadcasting a live game.",
         fan: `You are a passionate, slightly biased fan of the home team (${matchState.homeTeam.name}), commenting on the match. You get super excited for your team and a bit salty about the opponents. Keep it fun and energetic!`,
@@ -145,7 +144,6 @@ export const generateSpeech = async (text: string, style: CommentaryStyle, excit
     if (!navigator.onLine) throw new Error("Offline: Cannot generate speech.");
     const model = "gemini-2.5-flash-preview-tts";
     
-    // FIX: Populated the empty voiceMap object to select appropriate voices for different commentary styles.
     const voiceMap: Record<CommentaryStyle, 'Kore' | 'Zephyr' | 'Puck' | 'Charon'> = {
         professional: 'Kore',
         fan: 'Zephyr',
@@ -793,7 +791,6 @@ export const selectPlayerOfTheMatch = async (matchState: MatchState): Promise<{ 
                 number: selectedPlayer.number,
                 role: selectedPlayer.role,
                 photo: selectedPlayer.photo,
-// FIX: Add missing 'stats' property to the player object to match the 'Player' type definition.
                 stats: selectedPlayer.stats,
             },
             team: selectedPlayer.teamName === matchState.homeTeam.name ? 'home' : 'away',

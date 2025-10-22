@@ -479,11 +479,6 @@ interface MatchContextProviderProps {
     isFanView?: boolean;
 }
 
-// FIX: Cast the default monetization object to the Monetization type. This prevents TypeScript
-// from inferring the 'model' property as a generic 'string', ensuring it matches the
-// specific literal type ('free' | 'ppv' | 'subscription') required by the Monetization interface.
-// FIX: Cast default values for `commentaryStyle`, `commentaryLanguage`, and `matchType` to their specific types
-// to prevent them from being inferred as generic strings, which would cause a type mismatch.
 export const MatchContextProvider: React.FC<MatchContextProviderProps> = ({ children, homeTeam, awayTeam, initialState: loadedState, sponsorLogo, adBanner, scoreboardTemplate = 'default', monetization = { model: 'free' } as Monetization, commentaryStyle = 'professional' as CommentaryStyle, commentaryLanguage = 'english' as CommentaryLanguage, broadcastStyles = [], matchType = 'league' as const, officials = [], leagueName = '', matchDate = '', matchTimeOfDay = '', venue = '', weather = 'Clear' as WeatherCondition, isFanView = false }) => {
   const createInitialState = (home: Team, away: Team): MatchState => ({
     homeTeam: home,
