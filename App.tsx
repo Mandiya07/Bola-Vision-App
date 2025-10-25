@@ -285,11 +285,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const initializeCreatorFlow = async () => {
-      // @ts-ignore
-      if (window.aistudio && await window.aistudio.hasSelectedApiKey()) {
-        setHasSelectedKey(true);
+      try {
+        // @ts-ignore
+        if (window.aistudio && await window.aistudio.hasSelectedApiKey()) {
+          setHasSelectedKey(true);
+        }
+      } catch (error) {
+          console.error("Error checking for API key:", error);
+          setHasSelectedKey(false);
+      } finally {
+        setIsInitializing(false);
       }
-      setIsInitializing(false);
     };
 
     initializeCreatorFlow();
