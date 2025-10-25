@@ -1,4 +1,7 @@
 
+
+
+
 import { GoogleGenAI, Type, Modality, GenerateContentResponse, GenerateImagesResponse } from "@google/genai";
 import type { GameEvent, MatchState, Point, CommentaryStyle, CommentaryExcitement, Player, Team, AiDrawing, TacticalSuggestion, CommentaryLanguage, WinProbability, Highlight, SocialPostEvent, MatchPeriod } from '../types';
 import { PoseLandmarker, DrawingUtils } from '@mediapipe/tasks-vision';
@@ -128,6 +131,7 @@ export const generateCommentary = async (event: GameEvent, matchState: MatchStat
         console.error('Error generating commentary:', error);
         handleApiError(error);
     }
+    throw new Error('generateCommentary did not return a value.');
 };
 
 export const generateSpeech = async (text: string, style: CommentaryStyle, excitement: CommentaryExcitement): Promise<string> => {
@@ -171,6 +175,7 @@ export const generateSpeech = async (text: string, style: CommentaryStyle, excit
         console.error('Error generating speech:', error);
         handleApiError(error);
     }
+    throw new Error('generateSpeech did not return a value.');
 };
 
 const formatPoint = (p: Point | undefined) => p ? `(${p.x.toFixed(2)}%, ${p.y.toFixed(2)}%)` : 'Not mapped';
@@ -309,6 +314,7 @@ export const analyzeRefereeDecision = async (base64Frame: string, event: GameEve
         console.error("Error generating VAR decision:", e);
         handleApiError(e);
     }
+    throw new Error('analyzeRefereeDecision did not return a value.');
 };
 
 export const advancedFrameAnalysis = async (
@@ -334,29 +340,39 @@ export const advancedFrameAnalysis = async (
     
     const { homeTeam, awayTeam, homeTeamAttackDirection, matchTime } = matchState;
     const posesJSON = JSON.stringify(poseResult.landmarks.map(landmarkSet => 
-      landmarkSet.map(l => ({ x: l.x.toFixed(3), y: l.y.toFixed(3) }))
+      landmarkSet.map((l, index) => ({ index, x: l.x.toFixed(3), y: l.y.toFixed(3), v: l.visibility?.toFixed(3) }))
     ));
 
     const prompt = `
-        Analyze this ANNOTATED frame from a football match, which includes detected player poses.
-        The home team, ${homeTeam.name}, attacks towards the ${homeTeamAttackDirection} side. The away team is ${awayTeam.name}.
-        Match time is ~${Math.floor(matchTime / 60)}'.
+        You are a world-class football (soccer) analyst and AI expert. Your task is to analyze an annotated frame from a match, which includes detected player poses, to identify a key game event.
 
-        Attached is a JSON object representing the detected poses of players on the field.
-        'poses': ${posesJSON}
+        **Match Context:**
+        - Home Team: ${homeTeam.name} (attacking ${homeTeamAttackDirection}, wearing ${homeTeam.color || 'dark'} jerseys)
+        - Away Team: ${awayTeam.name} (wearing ${awayTeam.color || 'light'} jerseys)
+        - Match Time: Approximately ${Math.floor(matchTime / 60)} minutes.
 
-        Based on the image and the poses, identify if a more complex event is occurring.
-        Events to detect: 'GOAL', 'SHOT_ON_TARGET', 'SHOT_OFF_TARGET', 'CORNER', 'FOUL', 'OFFSIDE', 'SAVE', 'TACKLE'.
-        
-        Use the pose data to infer actions:
-        - A 'TACKLE' can be inferred from two players in close proximity with one on the ground.
-        - A 'SHOT' can be inferred from a player's leg in a kicking motion towards the goal.
-        - 'OFFSIDE' might be inferred by comparing player positions relative to the second-to-last defender.
+        **Input Data:**
+        1.  **Annotated Image**: A video frame with pose skeletons drawn on players.
+        2.  **Pose Data (JSON)**: An array of detected poses. Each pose is an array of landmarks with an index, normalized (x, y) coordinates, and visibility (v).
+            - Key Landmark Indices: Shoulders (11, 12), Hips (23, 24), Knees (25, 26), Ankles (27, 28), Feet (31, 32).
+            - 'poses': ${posesJSON}
 
-        Return a JSON object with the event type and team name. If no clear event, event should be "NONE".
+        **Your Reasoning Process:**
+        1.  **Team Identification**: For each pose, look at the image area around the torso (landmarks 11, 12, 23, 24) to determine jersey color and assign the player to either '${homeTeam.name}' or '${awayTeam.name}'.
+        2.  **Action Recognition**: Based on the poses and player team assignments, identify one of these events: 'TACKLE', 'PASS', 'SHOT_ON_TARGET', 'SHOT_OFF_TARGET', 'OFFSIDE', 'FOUL', 'SAVE'.
+            - **Tackle/Foul**: Look for 2+ players from opposing teams in close proximity. A tackle is a clean challenge for the ball. A foul involves a reckless challenge, pushing, or tripping, often resulting in a player falling unnaturally.
+            - **Pass/Shot**: Identify a player with a kicking motion (large distance between hip [23/24] and foot [31/32]). If the body orientation (shoulders [11/12]) is towards the opponent's goal, it is a 'SHOT'. Otherwise, it is a 'PASS'. Distinguish between 'SHOT_ON_TARGET' and 'SHOT_OFF_TARGET' based on the ball's trajectory relative to the goalposts in the frame.
+            - **Offside**: This is difficult. Attempt it only if an attacker seems to be receiving a pass. Identify the attacking team. Find the defending team's second-to-last player (excluding the goalkeeper) along the vertical axis. If the receiving attacker is beyond this defender when the pass is made (inferred from a teammate's kicking pose), it is 'OFFSIDE'.
+        3.  **Event Determination**: Conclude which single, most prominent event is occurring. If no clear event is happening, use "NONE".
+
+        **Output Format:**
+        Return a JSON object with the event type, the name of the team involved, and brief details explaining your reasoning.
 
         Example response:
-        { "event": "TACKLE", "teamName": "${awayTeam.name}" }
+        { "event": "TACKLE", "teamName": "${awayTeam.name}", "details": "Player in ${awayTeam.color || 'light'} jersey makes a sliding tackle on a player from ${homeTeam.name}." }
+        
+        Example for no event:
+        { "event": "NONE", "teamName": null, "details": null }
     `;
 
     try {
@@ -375,7 +391,8 @@ export const advancedFrameAnalysis = async (
                     type: Type.OBJECT,
                     properties: {
                         event: { type: Type.STRING },
-                        teamName: { type: Type.STRING, nullable: true }
+                        teamName: { type: Type.STRING, nullable: true },
+                        details: { type: Type.STRING, nullable: true, description: "Brief reasoning for the event detection, e.g., 'Player in blue tackles player in red.'" }
                     },
                     required: ["event", "teamName"]
                 }
@@ -390,6 +407,7 @@ export const advancedFrameAnalysis = async (
                 matchTime: matchState.matchTime,
                 type: jsonResponse.event,
                 teamName: jsonResponse.teamName,
+                details: jsonResponse.details || undefined,
             };
         }
         return null;
@@ -499,6 +517,7 @@ export const getTacticalSuggestion = async (base64Frame: string, matchState: Mat
         console.error("Error generating tactical suggestion:", e);
         handleApiError(e);
     }
+    throw new Error('getTacticalSuggestion did not return a value.');
 };
 
 export const generatePreMatchHype = async (homeTeam: Team, awayTeam: Team): Promise<string> => {
@@ -508,10 +527,24 @@ export const generatePreMatchHype = async (homeTeam: Team, awayTeam: Team): Prom
     const awayStar = awayTeam.players.find(p => p.role === 'Forward') || awayTeam.players[0];
 
     const prompt = `
-        Generate a short, exciting, and slightly hyperbolic pre-match hype comment for a football match between ${homeTeam.name} and ${awayTeam.name}.
-        Keep it to 1-2 sentences.
-        Mention a key player from each team if possible, like ${homeStar.name} for ${homeTeam.name} and ${awayStar.name} for ${awayTeam.name}.
-        Make it sound like a TV pundit.
+        You are a world-class football (soccer) pundit, known for your dramatic and insightful pre-match analysis.
+
+        Your task is to generate a short, exciting, and slightly hyperbolic pre-match hype comment for a football match between ${homeTeam.name} and ${awayTeam.name}.
+
+        **Key players to watch:**
+        - For ${homeTeam.name}: ${homeStar.name}, their star ${homeStar.role}.
+        - For ${awayTeam.name}: ${awayStar.name}, their key ${awayStar.role}.
+
+        **Narrative Context (Invent these details to create a compelling story):**
+        - **Recent Form:** Is one team on a winning streak ("in red-hot form")? Is the other struggling ("desperate for a result")?
+        - **Rivalry:** Is this a fierce local derby? Is there a history between the two managers, ${homeTeam.coachName || 'the home coach'} and ${awayTeam.coachName || 'the away coach'}?
+        - **Head-to-Head:** Does one team have a dominant record over the other ("looking to continue their dominance")? Or is it a chance for revenge ("out for revenge after their last encounter")?
+
+        **Instructions:**
+        1. Weave in the narrative context you've created to build excitement.
+        2. Mention at least one of the key players.
+        3. Keep your response concise and punchy (2-3 sentences max).
+        4. Make it sound like a captivating TV broadcast intro.
     `;
 
     try {
@@ -522,6 +555,7 @@ export const generatePreMatchHype = async (homeTeam: Team, awayTeam: Team): Prom
         console.error('Error generating pre-match hype:', error);
         handleApiError(error);
     }
+    throw new Error('generatePreMatchHype did not return a value.');
 };
 
 export const generateSocialMediaPost = async (event: SocialPostEvent, matchState: MatchState): Promise<string> => {
@@ -591,6 +625,7 @@ export const generateSocialMediaPost = async (event: SocialPostEvent, matchState
         console.error('Error generating social media post:', error);
         handleApiError(error);
     }
+    throw new Error('generateSocialMediaPost did not return a value.');
 };
 
 export const generateSocialMediaImage = async (event: SocialPostEvent, matchState: MatchState): Promise<string> => {
@@ -652,6 +687,7 @@ export const generateSocialMediaImage = async (event: SocialPostEvent, matchStat
         console.error('Error generating social media image:', error);
         handleApiError(error);
     }
+    throw new Error('generateSocialMediaImage did not return a value.');
 }
 
 export const generatePlayerSpotlightText = async (player: Player, team: Team): Promise<string> => {
@@ -677,6 +713,7 @@ export const generatePlayerSpotlightText = async (player: Player, team: Team): P
         console.error('Error generating player spotlight text:', error);
         handleApiError(error);
     }
+    throw new Error('generatePlayerSpotlightText did not return a value.');
 };
 
 export const generateMatchSummary = async (matchState: MatchState): Promise<string> => {
@@ -722,6 +759,7 @@ export const generateMatchSummary = async (matchState: MatchState): Promise<stri
         console.error('Error generating match summary:', error);
         handleApiError(error);
     }
+    throw new Error('generateMatchSummary did not return a value.');
 };
 
 export const selectPlayerOfTheMatch = async (matchState: MatchState): Promise<{ player: Player, team: 'home' | 'away', reasoning: string }> => {
@@ -804,6 +842,7 @@ export const selectPlayerOfTheMatch = async (matchState: MatchState): Promise<{ 
         console.error('Error selecting Player of the Match:', error);
         handleApiError(error);
     }
+    throw new Error('selectPlayerOfTheMatch did not return a value.');
 };
 
 export const translateText = async (text: string, targetLanguage: CommentaryLanguage): Promise<string> => {
@@ -825,6 +864,7 @@ export const translateText = async (text: string, targetLanguage: CommentaryLang
         console.error(`Error translating text to ${targetLanguage}:`, error);
         handleApiError(error);
     }
+    throw new Error('translateText did not return a value.');
 };
 
 export const getWinProbability = async (matchState: MatchState): Promise<WinProbability> => {
@@ -890,6 +930,7 @@ export const getWinProbability = async (matchState: MatchState): Promise<WinProb
         console.error('Error getting win probability:', error);
         handleApiError(error);
     }
+    throw new Error('getWinProbability did not return a value.');
 };
 
 export const generateHighlightReelSequence = async (highlights: Highlight[], matchState: MatchState): Promise<number[]> => {
@@ -951,6 +992,7 @@ export const generateHighlightReelSequence = async (highlights: Highlight[], mat
         console.error("Error generating highlight reel sequence:", e);
         handleApiError(e);
     }
+    throw new Error('generateHighlightReelSequence did not return a value.');
 };
 
 export const generateHalfTimeAnalysis = async (matchState: MatchState, period: 'First Half' | 'Full Match'): Promise<string> => {
@@ -992,4 +1034,5 @@ export const generateHalfTimeAnalysis = async (matchState: MatchState, period: '
         console.error('Error generating half-time analysis:', error);
         handleApiError(error);
     }
+    throw new Error('generateHalfTimeAnalysis did not return a value.');
 };

@@ -563,90 +563,105 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
     let cameraInterval: number | null = null;
 
     if (state.isAutoCameraOn && isAdvancedAnalysisEnabled && poseLandmarker) {
-      cameraInterval = window.setInterval(async () => {
-        if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
+        cameraInterval = window.setInterval(async () => {
+            if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
 
-        const video = videoRef.current;
-        const videoTime = video.currentTime * 1000;
-        const poseResult = poseLandmarker.detectForVideo(video, videoTime);
+            const video = videoRef.current;
+            const videoTime = video.currentTime * 1000;
+            const poseResult = poseLandmarker.detectForVideo(video, videoTime);
 
-        if (poseResult.landmarks.length === 0) return; // No players detected
+            // Need at least 2 players for clustering analysis
+            if (poseResult.landmarks.length < 2) return; 
 
-        // 1. Calculate the average vertical position of all players
-        let totalY = 0;
-        let detectedPlayers = 0;
-        for (const landmarks of poseResult.landmarks) {
-          // Use hips as a center point for a player
-          const leftHip = landmarks[23];
-          const rightHip = landmarks[24];
-          if (leftHip && rightHip) {
-            totalY += (leftHip.y + rightHip.y) / 2;
-            detectedPlayers++;
-          }
-        }
-
-        if (detectedPlayers === 0) return;
-
-        const avgY = (totalY / detectedPlayers) * 100; // as percentage
-
-        // 2. Determine zone of play
-        let zone: 'midfield' | 'goal_a' | 'goal_b';
-        if (avgY < 35) { // Action near top goal
-          zone = 'goal_a';
-        } else if (avgY > 65) { // Action near bottom goal
-          zone = 'goal_b';
-        } else { // Midfield action
-          zone = 'midfield';
-        }
-        
-        // 3. Decide on camera switch (with hysteresis to prevent rapid switching)
-        const MIN_CHECKS_TO_SWITCH = 2; // Must be in a new zone for 2 consecutive checks
-        const MIN_TIME_BETWEEN_SWITCHES = 5000; // 5 seconds
-
-        let newConsecutiveChecks = consecutiveChecks;
-        if (zone === currentPlayZone) {
-          newConsecutiveChecks++;
-          setConsecutiveChecks(newConsecutiveChecks);
-        } else {
-          // Reset if zone changes
-          setCurrentPlayZone(zone);
-          setConsecutiveChecks(1);
-          newConsecutiveChecks = 1;
-        }
-
-        if (newConsecutiveChecks >= MIN_CHECKS_TO_SWITCH) {
-          const now = Date.now();
-          if (now - lastCameraSwitchTimeRef.current > MIN_TIME_BETWEEN_SWITCHES) {
-            let newCamera: string;
-            switch (zone) {
-              case 'goal_a':
-                newCamera = 'Goal Cam A';
-                break;
-              case 'goal_b':
-                newCamera = 'Goal Cam B';
-                break;
-              case 'midfield':
-                // Alternate between Main and Tactical in midfield
-                newCamera = state.activeCamera === 'Main Cam' ? 'Tactical Cam' : 'Main Cam';
-                break;
-              default:
-                newCamera = 'Main Cam';
+            // 1. Get player positions
+            const playerPositions: { x: number, y: number }[] = [];
+            for (const landmarks of poseResult.landmarks) {
+                const leftHip = landmarks[23];
+                const rightHip = landmarks[24];
+                if (leftHip && rightHip) {
+                    playerPositions.push({
+                        x: ((leftHip.x + rightHip.x) / 2) * 100,
+                        y: ((leftHip.y + rightHip.y) / 2) * 100,
+                    });
+                }
             }
+            if (playerPositions.length < 2) return;
+
+            // 2. Analyze player distribution (clustering)
+            const n = playerPositions.length;
+            const avgX = playerPositions.reduce((sum, p) => sum + p.x, 0) / n;
+            const avgY = playerPositions.reduce((sum, p) => sum + p.y, 0) / n;
             
-            if (newCamera !== state.activeCamera) {
-                console.log(`AI Director: Switching to ${newCamera} (Zone: ${zone}, AvgY: ${avgY.toFixed(1)}%)`);
-                dispatch({ type: 'SET_AUTO_CAMERA', payload: newCamera });
-                lastCameraSwitchTimeRef.current = now;
+            const stdDevX = Math.sqrt(playerPositions.reduce((sum, p) => sum + Math.pow(p.x - avgX, 2), 0) / n);
+            const stdDevY = Math.sqrt(playerPositions.reduce((sum, p) => sum + Math.pow(p.y - avgY, 2), 0) / n);
+            
+            // Define thresholds for clustering. Smaller std dev means more clustered.
+            const CLUSTER_THRESHOLD_X = 20; // 20% of screen width
+            const CLUSTER_THRESHOLD_Y = 25; // 25% of screen height
+            const isClustered = stdDevX < CLUSTER_THRESHOLD_X && stdDevY < CLUSTER_THRESHOLD_Y;
+
+            // 3. Determine zone of play based on the cluster's center
+            let zone: 'midfield' | 'goal_a' | 'goal_b';
+            const GOAL_AREA_Y_TOP = 30; // Top 30% of screen
+            const GOAL_AREA_Y_BOTTOM = 70; // Bottom 30% of screen
+            const PENALTY_BOX_X_MIN = 20; // 20% from left
+            const PENALTY_BOX_X_MAX = 80; // 80% from left
+
+            if (avgY < GOAL_AREA_Y_TOP && avgX > PENALTY_BOX_X_MIN && avgX < PENALTY_BOX_X_MAX) {
+                zone = 'goal_a';
+            } else if (avgY > GOAL_AREA_Y_BOTTOM && avgX > PENALTY_BOX_X_MIN && avgX < PENALTY_BOX_X_MAX) {
+                zone = 'goal_b';
+            } else {
+                zone = 'midfield';
             }
-          }
-        }
-      }, 2000); // Analyze every 2 seconds
+
+            // 4. Decide on camera switch (with hysteresis to prevent rapid switching)
+            const MIN_CHECKS_TO_SWITCH = 2; // Must be in a new zone for 2 consecutive checks
+            const MIN_TIME_BETWEEN_SWITCHES = 5000; // 5 seconds
+
+            let newConsecutiveChecks = consecutiveChecks;
+            if (zone === currentPlayZone) {
+                newConsecutiveChecks++;
+                setConsecutiveChecks(newConsecutiveChecks);
+            } else {
+                setCurrentPlayZone(zone);
+                setConsecutiveChecks(1);
+                newConsecutiveChecks = 1;
+            }
+
+            if (newConsecutiveChecks >= MIN_CHECKS_TO_SWITCH) {
+                const now = Date.now();
+                if (now - lastCameraSwitchTimeRef.current > MIN_TIME_BETWEEN_SWITCHES) {
+                    let newCamera: string;
+                    switch (zone) {
+                        case 'goal_a':
+                            newCamera = 'Goal Cam A'; // Zoom in on goalmouth action
+                            break;
+                        case 'goal_b':
+                            newCamera = 'Goal Cam B'; // Zoom in on goalmouth action
+                            break;
+                        case 'midfield':
+                            // If clustered in midfield, use a wider tactical view. Otherwise, use main cam.
+                            newCamera = isClustered ? 'Tactical Cam' : 'Main Cam';
+                            break;
+                        default:
+                            newCamera = 'Main Cam';
+                    }
+
+                    if (newCamera !== state.activeCamera) {
+                        console.log(`AI Director: Switching to ${newCamera} (Zone: ${zone}, Clustered: ${isClustered}, StdDevX: ${stdDevX.toFixed(1)}, StdDevY: ${stdDevY.toFixed(1)})`);
+                        dispatch({ type: 'SET_AUTO_CAMERA', payload: newCamera });
+                        lastCameraSwitchTimeRef.current = now;
+                    }
+                }
+            }
+        }, 2000); // Analyze every 2 seconds
     }
 
     return () => {
-      if (cameraInterval) window.clearInterval(cameraInterval);
+        if (cameraInterval) window.clearInterval(cameraInterval);
     };
-  }, [state.isAutoCameraOn, isAdvancedAnalysisEnabled, poseLandmarker, dispatch, videoRef, state.activeCamera, currentPlayZone, consecutiveChecks]);
+}, [state.isAutoCameraOn, isAdvancedAnalysisEnabled, poseLandmarker, dispatch, videoRef, state.activeCamera, currentPlayZone, consecutiveChecks]);
 
   // Periodic bottom score graphic
   useEffect(() => {

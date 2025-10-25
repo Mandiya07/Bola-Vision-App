@@ -461,7 +461,7 @@ interface MatchContextProviderProps {
     children: ReactNode;
     homeTeam?: Team;
     awayTeam?: Team;
-    initialState?: MatchState;
+    initialState?: MatchState | null;
     sponsorLogo?: string;
     adBanner?: string;
     scoreboardTemplate?: string;
@@ -596,8 +596,11 @@ export const MatchContextProvider: React.FC<MatchContextProviderProps> = ({ chil
     if (isOnline) {
         dispatch({ type: 'SET_COMMENTARY', payload: { text: 'AI is thinking...', excitement: 'Normal'} });
         try {
-            const { text: commentaryText, excitement } = await generateCommentary(event, state);
-            dispatch({ type: 'SET_COMMENTARY', payload: { text: commentaryText, excitement } });
+            const commentary = await generateCommentary(event, state);
+            if (commentary) {
+              const { text: commentaryText, excitement } = commentary;
+              dispatch({ type: 'SET_COMMENTARY', payload: { text: commentaryText, excitement } });
+            }
         } catch(error) {
             console.error("Failed to generate commentary:", error);
             dispatch({ type: 'SET_COMMENTARY', payload: { text: 'Could not generate commentary at this time.', excitement: 'Normal' } });
