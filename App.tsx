@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import SetupScreen from './components/SetupScreen';
 import MatchScreen from './components/MatchScreen';
@@ -10,6 +9,7 @@ import FanViewScreen from './components/FanViewScreen';
 import UpgradeModal from './components/UpgradeModal';
 import SocialMediaModal from './components/SocialMediaModal';
 import ShareModal from './components/ShareModal';
+import SelectKeyScreen from './components/SelectKeyScreen';
 import { MatchContextProvider, useMatchContext } from './context/MatchContext';
 import { ProContextProvider, useProContext } from './context/ProContext';
 import type { Player, Team, MatchState, Monetization, CommentaryStyle, CommentaryLanguage, BroadcastStyle, Official, WeatherCondition } from './types';
@@ -348,18 +348,38 @@ const MainApplication: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 };
 
 const AppContent: React.FC = () => {
-    const [appState, setAppState] = useState<'checking' | 'auth' | 'main'>('checking');
+    const [appState, setAppState] = useState<'checking' | 'auth' | 'main' | 'selectKey'>('checking');
     const { setIsPro } = useProContext();
+    const [hasApiKey, setHasApiKey] = useState(false);
 
     useEffect(() => {
-        const user = localStorage.getItem('bolavision_user');
-        if (user) {
-            setIsPro(true);
-            setAppState('main');
-        } else {
-            setAppState('auth');
-        }
-    }, [setIsPro]);
+        // Handle API key re-selection events from the Gemini service
+        const handleReselect = () => setHasApiKey(false);
+        window.addEventListener('reselect-api-key', handleReselect);
+        return () => window.removeEventListener('reselect-api-key', handleReselect);
+    }, []);
+
+    useEffect(() => {
+        const checkKeyAndAuth = async () => {
+            // @ts-ignore - aistudio is globally available in this environment
+            const keySelected = await window.aistudio.hasSelectedApiKey();
+            setHasApiKey(keySelected);
+
+            if (!keySelected) {
+                setAppState('selectKey');
+                return;
+            }
+
+            const user = localStorage.getItem('bolavision_user');
+            if (user) {
+                setIsPro(true);
+                setAppState('main');
+            } else {
+                setAppState('auth');
+            }
+        };
+        checkKeyAndAuth();
+    }, [setIsPro, hasApiKey]);
 
     const handleLogin = () => {
         localStorage.setItem('bolavision_user', JSON.stringify({ email: 'pro@bolavision.com', status: 'pro' }));
@@ -384,8 +404,11 @@ const AppContent: React.FC = () => {
                 return (
                     <div className="flex flex-col items-center justify-center min-h-screen">
                         <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="mt-4 text-gray-300">Initializing...</p>
                     </div>
                 );
+            case 'selectKey':
+                return <SelectKeyScreen onKeySelected={() => setHasApiKey(true)} />;
             case 'auth':
                 return <AuthScreen onLogin={handleLogin} onGuest={handleGuest} />;
             case 'main':
