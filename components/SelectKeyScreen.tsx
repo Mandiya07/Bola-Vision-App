@@ -6,8 +6,12 @@ interface SelectKeyScreenProps {
 
 const SelectKeyScreen: React.FC<SelectKeyScreenProps> = ({ onKeySelected }) => {
   const handleSelectKey = async () => {
-    // @ts-ignore - aistudio is globally available in this environment
-    await window.aistudio.openSelectKey();
+    try {
+        // @ts-ignore - aistudio is globally available in this environment
+        await window.aistudio.openSelectKey();
+    } catch (error) {
+        console.error("Could not open API key selection dialog:", error);
+    }
     // Optimistically assume the user selected a key to unblock the UI.
     // Error handling in the Gemini service will catch failures and reset if needed.
     onKeySelected();

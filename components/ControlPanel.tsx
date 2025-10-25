@@ -256,8 +256,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   );
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-gray-900 bg-opacity-80 backdrop-blur-md text-white p-2 rounded-t-lg z-20">
-      <div className="w-full max-w-4xl mx-auto">
+    <div className="absolute bottom-0 left-0 right-0 bg-gray-900 bg-opacity-80 backdrop-blur-md text-white rounded-t-lg z-20 flex flex-col max-h-[85vh]">
+      <div className="w-full max-w-4xl mx-auto p-2 flex-shrink-0">
         <div className="flex justify-center items-center">
           <div className="flex-1">
              {autoSaveMessage && <div className="text-xs text-gray-400 animate-pulse text-left ml-2">{autoSaveMessage}</div>}
@@ -277,9 +277,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             </button>
           </div>
         </div>
+      </div>
 
         {isExpanded && (
-          <div className="mt-2 pt-2 border-t border-gray-700 space-y-4 animate-fade-in-fast overflow-y-auto max-h-[60vh]">
+          <div className="w-full max-w-4xl mx-auto px-2 pb-2 overflow-y-auto">
+            <div className="pt-2 border-t border-gray-700 space-y-4 animate-fade-in-fast">
              {shotToLogId && <ShotLogger onLogLocation={handleShotLocationLogged} />}
              
              {state.matchPeriod === 'penaltyShootout' ? renderPenaltyControls() : (
@@ -425,9 +427,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
             </div>
             
+            </div>
           </div>
         )}
-      </div>
     </div>
   );
 };
