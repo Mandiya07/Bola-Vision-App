@@ -284,21 +284,28 @@ const App: React.FC = () => {
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    const initializeCreatorFlow = async () => {
+    // This promise attempts to check for a pre-selected API key.
+    const keyCheckPromise = (async () => {
       try {
         // @ts-ignore
-        if (window.aistudio && await window.aistudio.hasSelectedApiKey()) {
+        if (window.aistudio && (await window.aistudio.hasSelectedApiKey())) {
           setHasSelectedKey(true);
         }
       } catch (error) {
-          console.error("Error checking for API key:", error);
-          setHasSelectedKey(false);
-      } finally {
-        setIsInitializing(false);
+        console.error("Error checking for API key:", error);
+        // hasSelectedKey remains false, which is the correct fallback.
       }
-    };
+    })();
 
-    initializeCreatorFlow();
+    // This promise acts as a timeout.
+    const timeoutPromise = new Promise(resolve => setTimeout(resolve, 4000)); // 4-second timeout
+
+    // We race the key check against the timeout.
+    // Whichever finishes first, we proceed by hiding the initializing screen.
+    // This prevents the app from getting stuck if the key check hangs.
+    Promise.race([keyCheckPromise, timeoutPromise]).finally(() => {
+      setIsInitializing(false);
+    });
   }, []);
 
   useEffect(() => {
