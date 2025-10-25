@@ -30,7 +30,7 @@ async function callProxy(method: 'generateContent' | 'generateImages', params: a
 
 export const getEventDescription = (event: GameEvent): string => {
     const playerIdentifier = event.playerName
-        ? `${event.playerName} (#${event.playerNumber})`
+        ? `${event.playerName} (#${event.playerNumber}, ${event.playerRole || 'Player'})`
         : (event.playerNumber ? `player number ${event.playerNumber}` : `a player from ${event.teamName}`);
 
     switch (event.type) {

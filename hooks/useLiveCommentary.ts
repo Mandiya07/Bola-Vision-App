@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality, Blob as GenAiBlob } from '@google/genai';
 import type { MatchState, CommentaryStyle } from '../types';
 import { blobToBase64, decode, encode, decodeAudioData } from '../utils/mediaUtils';

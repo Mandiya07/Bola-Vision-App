@@ -55,7 +55,7 @@ const CommentaryDisplay: React.FC<CommentaryDisplayProps> = ({ text, audioStatus
     }
 
     return (
-        <div className="absolute top-4 right-4 w-1/4 max-w-sm bg-black bg-opacity-60 backdrop-blur-sm p-3 rounded-lg shadow-lg">
+        <div className="absolute bottom-20 right-2 w-[48%] max-w-[280px] bg-black bg-opacity-60 backdrop-blur-sm p-3 rounded-lg shadow-lg md:top-4 md:right-4 md:bottom-auto md:w-1/4 md:max-w-sm">
             <div className="flex items-center justify-between border-b border-gray-600 pb-1 mb-2">
                 <h3 className="text-sm font-bold text-yellow-300 uppercase tracking-wider">Live Commentary</h3>
                 <div className="w-6 h-6 flex items-center justify-center">{getStatusIndicator()}</div>

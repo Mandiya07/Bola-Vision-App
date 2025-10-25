@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useMatchContext } from '../context/MatchContext';
 import { analyzeVideoFrame, advancedFrameAnalysis, generateSpeech, translateText, getTacticalSuggestion, getWinProbability, analyzeRefereeDecision } from '../services/geminiService';
@@ -33,7 +34,7 @@ import GoalImpactOverlay from './GoalImpactOverlay';
 import PollOverlay from './PollOverlay';
 import VarCheckOverlay from './VarCheckOverlay';
 import HalfTimeAnalysis from './HalfTimeAnalysis';
-import { AiAnalysisIcon, BrainIcon, CameraIcon, CloudOfflineIcon, EndMatchIcon, BroadcastIcon } from './icons/ControlIcons';
+import { AiAnalysisIcon, BrainIcon, CameraIcon, CloudOfflineIcon, EndMatchIcon, BroadcastIcon, SwitchCameraIcon } from './icons/ControlIcons';
 import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import type { CommentaryLanguage, TacticalSuggestion, GameEvent, Point } from '../types';
 
@@ -93,6 +94,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [autoSaveMessage, setAutoSaveMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [recordingSaveMessage, setRecordingSaveMessage] = useState('');
   
   const [isAdvancedAnalysisEnabled, setIsAdvancedAnalysisEnabled] = useState(false);
   const [poseLandmarker, setPoseLandmarker] = useState<PoseLandmarker | null>(null);
@@ -112,6 +114,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
   const [showFormationDisplay, setShowFormationDisplay] = useState(false);
   
   const [publishError, setPublishError] = useState('');
+  const [currentDeviceIndex, setCurrentDeviceIndex] = useState(0);
 
   // State for intelligent camera director
   const [currentPlayZone, setCurrentPlayZone] = useState<'midfield' | 'goal_a' | 'goal_b'>('midfield');
@@ -256,7 +259,9 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
         if (videoBlob.size > 0) {
             const matchName = `${state.homeTeam.name} vs ${state.awayTeam.name}`;
             await saveVideoBlob(videoBlob, matchName);
-            alert(`Recording saved! It will be uploaded when you're online. (${(videoBlob.size / 1024 / 1024).toFixed(2)} MB)`);
+            const message = `Recording saved! (${(videoBlob.size / 1024 / 1024).toFixed(2)} MB)`;
+            setRecordingSaveMessage(message);
+            setTimeout(() => setRecordingSaveMessage(''), 4000);
         }
         setIsRecording(false);
         // Restart replay buffering after full recording stops
@@ -740,14 +745,15 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
     });
   };
 
-  const handleSelectCamera = useCallback((deviceId: string) => {
-    const selectedDevice = videoDevices.find(d => d.deviceId === deviceId);
-    if (selectedDevice) {
-        setupCamera(deviceId);
-        // Dispatch to update the UI label and turn off auto-camera
-        dispatch({ type: 'SET_CAMERA', payload: selectedDevice.label });
+  const handleToggleCamera = useCallback(() => {
+    if (videoDevices.length > 1) {
+        const nextIndex = (currentDeviceIndex + 1) % videoDevices.length;
+        setCurrentDeviceIndex(nextIndex);
+        const nextDevice = videoDevices[nextIndex];
+        setupCamera(nextDevice.deviceId);
+        dispatch({ type: 'SET_CAMERA', payload: nextDevice.label });
     }
-  }, [videoDevices, setupCamera, dispatch]);
+  }, [currentDeviceIndex, videoDevices, setupCamera, dispatch]);
   
   const renderCameraOverlay = () => {
     if (permissionStatus === 'checking') {
@@ -867,16 +873,27 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
         <>
           <GoLiveButton />
 
-          <button
-            onClick={() => setShowEndMatchConfirm(true)}
-            className="absolute top-5 left-5 bg-gray-800/80 hover:bg-red-700 p-3 rounded-full shadow-lg z-50 transition-all duration-300 transform hover:scale-110 group"
-            aria-label="End Match"
-            title="End Match"
-          >
-            <EndMatchIcon className="w-6 h-6 text-gray-300 group-hover:text-white transition-colors" />
-          </button>
-
-          <h1 className="absolute top-5 left-[70px] text-2xl font-bold z-50 opacity-80" style={{ color: '#00e676' }}>BolaVision</h1>
+          <div className="absolute top-5 right-5 flex items-center gap-4 z-50">
+            <h1 className="hidden md:block text-2xl font-bold opacity-80" style={{ color: '#00e676' }}>BolaVision</h1>
+             {videoDevices.length > 1 && (
+                <button
+                    onClick={handleToggleCamera}
+                    className="bg-gray-800/80 hover:bg-blue-700 p-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 group"
+                    aria-label="Switch Camera"
+                    title="Switch Camera"
+                >
+                    <SwitchCameraIcon className="w-6 h-6 text-gray-300 group-hover:text-white transition-colors" />
+                </button>
+            )}
+            <button
+              onClick={() => setShowEndMatchConfirm(true)}
+              className="bg-gray-800/80 hover:bg-red-700 p-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 group"
+              aria-label="End Match"
+              title="End Match"
+            >
+              <EndMatchIcon className="w-6 h-6 text-gray-300 group-hover:text-white transition-colors" />
+            </button>
+          </div>
 
           <canvas ref={canvasRef} className="hidden"></canvas>
           <div className="absolute inset-0 bg-black bg-opacity-10"></div>
@@ -964,8 +981,6 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
             toggleReplay={handleTriggerReplay} 
             toggleStats={toggleStats}
             togglePlayerStats={togglePlayerStats}
-            videoDevices={videoDevices}
-            onSelectCamera={handleSelectCamera}
             toggleInstructions={() => setShowInstructions(true)}
             toggleSubModal={() => setShowSubModal(true)}
             toggleTacticsBoard={toggleTacticsBoard}
@@ -974,6 +989,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
             toggleAdvancedAnalysis={() => setIsAdvancedAnalysisEnabled(prev => !prev)}
             isPoseLandmarkerLoading={isPoseLandmarkerLoading}
             autoSaveMessage={autoSaveMessage}
+            recordingSaveMessage={recordingSaveMessage}
             isRecording={isRecording}
             toggleRecording={handleToggleRecording}
             isOnline={isOnline}

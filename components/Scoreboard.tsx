@@ -52,7 +52,7 @@ const DefaultScoreboard: React.FC = () => {
   const { penaltyShootout } = state;
 
   return (
-    <div className="absolute top-20 left-4 flex flex-col gap-2">
+    <div className="absolute top-4 left-4 flex flex-col gap-2">
       <div className="bg-black bg-opacity-60 backdrop-blur-sm p-3 rounded-lg text-white font-bold shadow-lg">
         <div className="flex items-center space-x-4 text-2xl">
           <div className="flex items-center gap-3">
@@ -101,7 +101,7 @@ const MinimalScoreboard: React.FC = () => {
     const { state } = useMatchContext();
     const { homeTeam, awayTeam, homeStats, awayStats, matchTime, monetization, matchPeriod, penaltyShootout, broadcastStatus } = state;
     return (
-        <div className="absolute top-20 left-4 flex items-center gap-4 bg-black/70 backdrop-blur-sm p-2 rounded-full text-white font-mono shadow-lg animate-fade-in">
+        <div className="absolute top-4 left-4 flex items-center gap-4 bg-black/70 backdrop-blur-sm p-2 rounded-full text-white font-mono shadow-lg animate-fade-in">
             <div className="flex items-center gap-2">
                 {homeTeam.logo && <img src={homeTeam.logo} alt={homeTeam.name} className="w-7 h-7 object-contain rounded-full" style={{backgroundColor: homeTeam.color || '#3b82f6'}}/>}
                 <span className="font-bold text-lg">{homeStats.goals}</span>

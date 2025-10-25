@@ -1,3 +1,4 @@
+
 import type { MatchState } from '../types';
 
 const DB_NAME = 'AI_Match_DB';
@@ -223,6 +224,44 @@ export async function clearDB(): Promise<void> {
           resolve()
         };
         transaction.onerror = () => reject(new Error('Failed to clear database.'));
+    });
+}
+
+export async function getSavedVideosList(): Promise<{ id: string; name: string }[]> {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(VIDEO_STORE, 'readonly');
+        const store = transaction.objectStore(VIDEO_STORE);
+        const request = store.getAll();
+
+        request.onsuccess = () => {
+            if (request.result) {
+                // Filter out highlight blobs, which don't have a 'name' property
+                const videoList = request.result
+                    .filter((record: any) => record.name) 
+                    .map((record: any) => ({
+                        id: record.id,
+                        name: record.name,
+                    }));
+                resolve(videoList);
+            } else {
+                resolve([]);
+            }
+        };
+        request.onerror = () => reject(new Error('Failed to retrieve video list.'));
+    });
+}
+
+export async function deleteVideo(id: string): Promise<void> {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(VIDEO_STORE, 'readwrite');
+        const store = transaction.objectStore(VIDEO_STORE);
+        store.delete(id);
+        transaction.oncomplete = () => {
+          resolve();
+        };
+        transaction.onerror = () => reject(new Error('Failed to delete video.'));
     });
 }
 

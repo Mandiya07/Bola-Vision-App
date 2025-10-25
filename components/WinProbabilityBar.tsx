@@ -21,7 +21,7 @@ const WinProbabilityBar: React.FC = () => {
     const drawColor = '#6b7280'; // gray-500
 
     return (
-        <div className="absolute bottom-[170px] md:bottom-36 left-1/2 -translate-x-1/2 w-11/12 max-w-xl bg-gray-900/80 backdrop-blur-md rounded-lg shadow-2xl p-2 text-white animate-fade-in-up z-20">
+        <div className="absolute bottom-72 left-1/2 -translate-x-1/2 w-11/12 max-w-xl bg-gray-900/80 backdrop-blur-md rounded-lg shadow-2xl p-2 text-white animate-fade-in-up z-20 md:bottom-36">
             <div className="text-center text-xs font-bold uppercase tracking-wider text-gray-300 mb-1">Win Probability</div>
             <div className="flex h-6 w-full rounded-md overflow-hidden bg-gray-700">
                 <div 

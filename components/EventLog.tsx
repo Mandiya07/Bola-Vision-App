@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { useMatchContext } from '../context/MatchContext';
 import { GameEvent } from '../types';
-import { GoalIcon, YellowCardIcon, RedCardIcon, SubstitutionIcon, MedicalIcon, ShareIcon } from './icons/ControlIcons';
+import { GoalIcon, YellowCardIcon, RedCardIcon, SubstitutionIcon, MedicalIcon, ShareIcon, FoulIcon, CornerIcon, OffsideIcon, ShotOnTargetIcon, ShotOffTargetIcon, GoalkeeperSaveIcon } from './icons/ControlIcons';
 
 const formatTime = (totalSeconds: number) => {
     const minutes = Math.floor(totalSeconds / 60);
@@ -20,6 +20,18 @@ const getEventIcon = (type: GameEvent['type']) => {
             return <SubstitutionIcon className="w-5 h-5 text-orange-400" />;
         case 'INJURY':
             return <MedicalIcon className="w-5 h-5 text-cyan-400" />;
+        case 'FOUL':
+            return <FoulIcon className="w-5 h-5 text-orange-400" />;
+        case 'SAVE':
+            return <GoalkeeperSaveIcon className="w-5 h-5 text-blue-400" />;
+        case 'SHOT_ON_TARGET':
+            return <ShotOnTargetIcon className="w-5 h-5 text-green-400" />;
+        case 'SHOT_OFF_TARGET':
+            return <ShotOffTargetIcon className="w-5 h-5 text-gray-500" />;
+        case 'CORNER':
+            return <CornerIcon className="w-5 h-5 text-gray-300" />;
+        case 'OFFSIDE':
+            return <OffsideIcon className="w-5 h-5 text-indigo-400" />;
         default:
             return null;
     }
@@ -38,6 +50,18 @@ const getEventText = (event: GameEvent): string => {
             return `Sub: ${event.playerIn?.name} for ${event.playerOut?.name}`;
         case 'INJURY':
             return `Injury${playerName}`;
+        case 'FOUL':
+            return `Foul by${playerName}`;
+        case 'SAVE':
+            return `Save!${playerName}`;
+        case 'SHOT_ON_TARGET':
+            return `Shot on Target${playerName}`;
+        case 'SHOT_OFF_TARGET':
+            return `Shot Off Target${playerName}`;
+        case 'CORNER':
+            return `Corner: ${event.teamName}`;
+        case 'OFFSIDE':
+            return `Offside: ${event.teamName}`;
         default:
             return '';
     }
@@ -53,7 +77,13 @@ const EventLog: React.FC = () => {
         e.type === 'YELLOW_CARD' || 
         e.type === 'RED_CARD' || 
         e.type === 'SUBSTITUTION' ||
-        e.type === 'INJURY'
+        e.type === 'INJURY' ||
+        e.type === 'FOUL' ||
+        e.type === 'SAVE' ||
+        e.type === 'SHOT_ON_TARGET' ||
+        e.type === 'SHOT_OFF_TARGET' ||
+        e.type === 'CORNER' ||
+        e.type === 'OFFSIDE'
     );
     
     useEffect(() => {
@@ -68,7 +98,7 @@ const EventLog: React.FC = () => {
     }
 
     return (
-        <div className="absolute bottom-24 right-4 w-64 max-h-48 bg-gray-900/70 backdrop-blur-md rounded-lg shadow-lg flex flex-col animate-fade-in-fast z-20">
+        <div className="absolute bottom-20 left-2 w-[48%] max-w-[280px] max-h-48 bg-gray-900/70 backdrop-blur-md rounded-lg shadow-lg flex flex-col animate-fade-in-fast z-20 md:bottom-auto md:top-28 md:left-4 md:w-64">
             <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider p-2 border-b border-gray-700 text-center">
                 Event Log
             </h3>

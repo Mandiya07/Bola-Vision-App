@@ -225,6 +225,7 @@ export interface GameEvent {
   matchTime: number; // The time in seconds when the event occurred
   playerName?: string;
   playerNumber?: number;
+  playerRole?: Player['role'];
   details?: string;
   location?: Point; // Optional location for shots/goals
   // For substitutions

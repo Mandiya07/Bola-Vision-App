@@ -38,7 +38,7 @@ const PlayerStatPopup: React.FC = () => {
     const playerPhoto = player.photo || `https://ui-avatars.com/api/?name=${player.name.replace(' ', '+')}&background=random&size=256`;
 
     return (
-        <div className="absolute bottom-5 left-5 w-full max-w-sm z-30 pointer-events-none animate-fade-in-up">
+        <div className="absolute bottom-20 left-2 w-full max-w-sm z-30 pointer-events-none animate-fade-in-up md:bottom-5 md:left-5">
             <div 
               key={player.number + eventType} // Re-trigger animation if same player has a new event
               className="relative bg-gray-900/80 backdrop-blur-sm rounded-lg shadow-2xl border-l-4 overflow-hidden animate-fade-out"

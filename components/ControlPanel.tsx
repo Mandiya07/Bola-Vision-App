@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, MouseEvent } from 'react';
 import { useMatchContext } from '../context/MatchContext';
 import { useProContext } from '../context/ProContext';
@@ -46,8 +48,6 @@ interface ControlPanelProps {
   toggleReplay: () => void;
   toggleStats: () => void;
   togglePlayerStats: () => void;
-  videoDevices: MediaDeviceInfo[];
-  onSelectCamera: (deviceId: string) => void;
   toggleInstructions: () => void;
   toggleSubModal: () => void;
   toggleTacticsBoard: () => void;
@@ -56,6 +56,7 @@ interface ControlPanelProps {
   toggleAdvancedAnalysis: () => void;
   isPoseLandmarkerLoading: boolean;
   autoSaveMessage: string;
+  recordingSaveMessage: string;
   isRecording: boolean;
   toggleRecording: () => void;
   isOnline: boolean;
@@ -66,23 +67,11 @@ interface ControlPanelProps {
   onTriggerVarCheck: (event: GameEvent) => void;
 }
 
-const getShortDeviceLabel = (label: string): string => {
-    if (!label) return 'Camera';
-    // Tries to find a shorter, more descriptive name. e.g., "FaceTime HD Camera (Built-in)" -> "FaceTime HD Camera"
-    const parts = label.split('(');
-    const mainLabel = parts[0].trim();
-    // Fallback for long names without parentheses
-    if (mainLabel.length > 15) return mainLabel.substring(0, 13) + '...';
-    return mainLabel || 'Camera';
-};
-
 const ControlPanel: React.FC<ControlPanelProps> = ({ 
     toggleAd, 
     toggleReplay, 
     toggleStats,
     togglePlayerStats,
-    videoDevices,
-    onSelectCamera,
     toggleInstructions, 
     toggleSubModal, 
     toggleTacticsBoard,
@@ -91,6 +80,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     toggleAdvancedAnalysis,
     isPoseLandmarkerLoading,
     autoSaveMessage,
+    recordingSaveMessage,
     isRecording,
     toggleRecording,
     isOnline,
@@ -181,6 +171,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       matchTime: state.matchTime,
       playerNumber: selectedPlayer?.number,
       playerName: selectedPlayer?.name,
+      playerRole: selectedPlayer?.role,
     };
     processGameEventWithCommentary(event);
     if (type === 'GOAL' || type === 'SHOT_ON_TARGET') {
@@ -271,6 +262,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           <div className="flex-1">
              {autoSaveMessage && <div className="text-xs text-gray-400 animate-pulse text-left ml-2">{autoSaveMessage}</div>}
              {saveMessage && <div className="text-xs text-green-400 font-bold text-left ml-2">{saveMessage}</div>}
+             {recordingSaveMessage && <div className="text-xs text-blue-400 font-bold text-left ml-2 animate-fade-in">{recordingSaveMessage}</div>}
           </div>
 
           <div className="flex justify-center items-center gap-4">
@@ -287,7 +279,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </div>
 
         {isExpanded && (
-          <div className="mt-2 pt-2 border-t border-gray-700 space-y-4 animate-fade-in-fast">
+          <div className="mt-2 pt-2 border-t border-gray-700 space-y-4 animate-fade-in-fast overflow-y-auto max-h-[60vh]">
              {shotToLogId && <ShotLogger onLogLocation={handleShotLocationLogged} />}
              
              {state.matchPeriod === 'penaltyShootout' ? renderPenaltyControls() : (
@@ -305,7 +297,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
             )}
             
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+            <div className="grid grid-cols-4 lg:grid-cols-7 gap-2">
                 <div className="relative group">
                     <button onClick={toggleStats} className="w-full font-bold p-2 rounded-lg transition bg-gray-700 hover:bg-gray-600 text-sm flex items-center justify-center gap-2"><StatsIcon className="w-5 h-5"/>Stats</button>
                     <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Show match statistics.</span>
@@ -410,16 +402,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
             <div className="p-2 bg-gray-800/50 rounded-lg">
                  <h3 className="text-center font-bold text-sm text-gray-300 mb-2">Camera & Recording</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    <div className="relative group">
-                        <select onChange={(e) => onSelectCamera(e.target.value)} className="w-full h-full font-bold p-2 rounded-lg transition bg-gray-700 hover:bg-gray-600 text-sm text-center appearance-none">
-                            <option value="">{getShortDeviceLabel(state.activeCamera)}</option>
-                            {videoDevices.map(device => (
-                                <option key={device.deviceId} value={device.deviceId}>{getShortDeviceLabel(device.label)}</option>
-                            ))}
-                        </select>
-                        <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Switch physical camera.</span>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                      <div className="relative group">
                         <button onClick={() => dispatch({ type: 'TOGGLE_AUTO_CAMERA'})} className={`w-full font-bold p-2 rounded-lg transition text-sm flex items-center justify-center gap-2 ${state.isAutoCameraOn ? 'bg-cyan-500' : 'bg-gray-700 hover:bg-gray-600'}`} disabled={!isPro || !isAdvancedAnalysisEnabled}>
                            <BrainIcon className="w-5 h-5"/> Auto-Cam

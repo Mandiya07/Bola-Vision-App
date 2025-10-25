@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import type { Player, Team, MatchState, Monetization, CommentaryStyle, CommentaryLanguage, BroadcastStyle, Official, WeatherCondition } from '../types';
-import { loadDecryptedState, clearDB } from '../services/storageService';
+import { loadDecryptedState, clearDB, getSavedVideosList, getDecryptedBlobById, deleteVideo } from '../services/storageService';
 import { useProContext } from '../context/ProContext';
-import { LogoutIcon } from './icons/ControlIcons';
+import { LogoutIcon, PlayIcon, TrashIcon } from './icons/ControlIcons';
 
 interface SetupScreenProps {
   onSetupComplete: (homeTeam: Team, awayTeam: Team, template: string, monetization: Monetization, commentaryStyle: CommentaryStyle, commentaryLanguage: CommentaryLanguage, broadcastStyles: BroadcastStyle[], matchType: 'league' | 'knockout', officials: Official[], leagueName: string, matchDate: string, matchTimeOfDay: string, venue: string, weather: WeatherCondition, sponsorLogo?: string, adBanner?: string) => void;
@@ -66,35 +66,74 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onSetupComplete, onLoadMatch,
   const [matchType, setMatchType] = useState<'league' | 'knockout'>('league');
 
   const [activeTab, setActiveTab] = useState<'teams' | 'match' | 'broadcast'>('teams');
+  
+  const [savedVideos, setSavedVideos] = useState<{ id: string; name: string }[]>([]);
+  const [videoToPlay, setVideoToPlay] = useState<{ name: string, url: string } | null>(null);
+
 
   useEffect(() => {
-    const checkForSavedMatch = async () => {
+    const checkForSavedData = async () => {
       try {
-        const match = await loadDecryptedState();
+        const [match, videos] = await Promise.all([
+          loadDecryptedState(),
+          getSavedVideosList()
+        ]);
+        
+        setSavedVideos(videos);
+
         if (match) {
           setSavedMatch(match);
-        } else {
+        } else if (videos.length === 0) {
+          // Only go to setup if there's no match AND no videos
           setShowSetup(true);
         }
       } catch (error) {
-        console.error("Error loading match:", error);
+        console.error("Error loading saved data:", error);
         setShowSetup(true); // Default to setup screen on error
       } finally {
         setIsLoading(false);
       }
     };
-    checkForSavedMatch();
+    checkForSavedData();
   }, []);
   
   const handleStartNew = async () => {
     await clearDB();
     setSavedMatch(null);
+    setSavedVideos([]);
     setShowSetup(true);
   };
 
   const handleLoad = () => {
     if (savedMatch) {
       onLoadMatch(savedMatch);
+    }
+  };
+
+  const handlePlayVideo = async (video: { id: string; name: string }) => {
+    try {
+        const blob = await getDecryptedBlobById(video.id);
+        if (blob) {
+            const url = URL.createObjectURL(blob);
+            setVideoToPlay({ name: video.name, url });
+        } else {
+            alert('Could not load video. It might have been deleted or corrupted.');
+        }
+    } catch(e) {
+        console.error("Error playing video:", e);
+        alert('An error occurred while trying to play the video.');
+    }
+  };
+
+  const handleDeleteVideo = async (videoId: string) => {
+    if (window.confirm('Are you sure you want to permanently delete this recording?')) {
+        try {
+            await deleteVideo(videoId);
+            setSavedVideos(videos => videos.filter(v => v.id !== videoId));
+        } catch(e) {
+            console.error("Error deleting video:", e);
+            alert('Failed to delete video.');
+        }
     }
   };
 
@@ -334,9 +373,17 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onSetupComplete, onLoadMatch,
     );
   }
 
-  if (!showSetup && savedMatch) {
+  if (!showSetup) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-4 animate-fade-in">
+        {videoToPlay && (
+            <div className="fixed inset-0 bg-black/80 flex flex-col items-center justify-center z-50" onClick={() => setVideoToPlay(null)}>
+                <div className="w-full max-w-4xl p-4" onClick={e => e.stopPropagation()}>
+                    <video key={videoToPlay.url} src={videoToPlay.url} controls autoPlay className="w-full rounded-lg" onEnded={() => setVideoToPlay(null)} />
+                    <p className="text-white text-center mt-2 truncate">{videoToPlay.name}</p>
+                </div>
+            </div>
+        )}
         <div className="w-full max-w-md bg-gray-800 rounded-lg shadow-xl p-8 text-center relative">
             <div className="absolute top-4 right-4">
                 <button onClick={onLogout} className="p-2 bg-gray-700 hover:bg-red-600 rounded-full transition-colors group" title="Logout">
@@ -345,20 +392,50 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onSetupComplete, onLoadMatch,
             </div>
           <h1 className="text-5xl font-bold mb-2" style={{ color: '#00e676' }}>BolaVision</h1>
           <p className="text-gray-400 italic mb-6">“Your Game, Our Vision.”</p>
-          <h1 className="text-3xl font-bold text-white mb-4">Saved Match Found!</h1>
-          <p className="text-gray-300 mb-2 truncate">
-            {savedMatch.homeTeam.name} vs {savedMatch.awayTeam.name}
-          </p>
-          <p className="text-lg font-bold text-yellow-400 mb-6">
-            {savedMatch.homeStats.goals} - {savedMatch.awayStats.goals} ({Math.floor(savedMatch.matchTime / 60)}' min)
-          </p>
-          <button onClick={handleLoad} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-transform transform hover:scale-105 mb-4">
-            Load Match
-          </button>
-          <button onClick={handleStartNew} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition">
-            Start a New Match
-          </button>
+          
+          {savedMatch ? (
+            <>
+                <h1 className="text-3xl font-bold text-white mb-4">Saved Match Found!</h1>
+                <p className="text-gray-300 mb-2 truncate">
+                    {savedMatch.homeTeam.name} vs {savedMatch.awayTeam.name}
+                </p>
+                <p className="text-lg font-bold text-yellow-400 mb-6">
+                    {savedMatch.homeStats.goals} - {savedMatch.awayStats.goals} ({Math.floor(savedMatch.matchTime / 60)}' min)
+                </p>
+                <button onClick={handleLoad} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-transform transform hover:scale-105 mb-4">
+                    Load Match
+                </button>
+                <button onClick={handleStartNew} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition">
+                    Start a New Match
+                </button>
+            </>
+          ) : (
+             <button onClick={() => setShowSetup(true)} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-transform transform hover:scale-105">
+                Start a New Match
+            </button>
+          )}
         </div>
+
+        {savedVideos.length > 0 && (
+            <div className={`w-full max-w-md bg-gray-800 rounded-lg shadow-xl p-6 text-center mt-6 animate-fade-in-up`}>
+                <h2 className="text-2xl font-bold text-white mb-4">My Recordings</h2>
+                <div className="space-y-2 max-h-60 overflow-y-auto text-left">
+                    {savedVideos.map(video => (
+                        <div key={video.id} className="bg-gray-700 p-2 rounded-lg flex items-center justify-between">
+                            <span className="truncate flex-1 mr-2 text-sm">{video.name}</span>
+                            <div className="flex gap-2">
+                                <button onClick={() => handlePlayVideo(video)} className="p-2 bg-blue-600 hover:bg-blue-700 rounded-md" title="Play recording">
+                                    <PlayIcon className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => handleDeleteVideo(video.id)} className="p-2 bg-red-600 hover:bg-red-700 rounded-md" title="Delete recording">
+                                    <TrashIcon className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
       </div>
     );
   }
@@ -393,15 +470,34 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onSetupComplete, onLoadMatch,
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* Home Team */}
                   <div className="flex flex-col gap-4 bg-gray-700 p-6 rounded-lg">
-                    <h2 className="text-2xl font-semibold text-center" style={{ color: homeTeamColor }}>Home Team</h2>
-                    <div>
-                      <label htmlFor="homeTeamName" className="block text-sm font-medium text-gray-300 mb-1">Team Name</label>
-                      <input type="text" id="homeTeamName" value={homeTeamName} onChange={(e) => setHomeTeamName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': homeTeamColor} as React.CSSProperties} required />
+                    <div className="flex items-start gap-4 border-b border-gray-600 pb-4">
+                        <div className="flex flex-col items-center gap-1 w-24 flex-shrink-0">
+                            <label htmlFor="homeTeamLogoInput" className="cursor-pointer bg-gray-800 border-2 border-dashed border-gray-600 rounded-lg w-24 h-24 flex items-center justify-center text-center text-gray-400 hover:bg-gray-900 hover:border-green-500 transition">
+                              {homeTeamLogo ? (
+                                <img src={homeTeamLogo} alt="Home Team Logo" className="w-full h-full object-contain p-1" />
+                              ) : (
+                                <span className="text-xs px-1">Click to Upload Logo</span>
+                              )}
+                            </label>
+                            <input id="homeTeamLogoInput" type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, setHomeTeamLogo)} />
+                            {homeTeamLogo ? 
+                                <button type="button" onClick={() => setHomeTeamLogo('')} className="text-red-400 hover:text-red-600 text-xs font-bold h-5">Remove</button>
+                                : <div className="h-5"></div>
+                            }
+                        </div>
+                        <div className="flex-1 space-y-4">
+                            <h2 className="text-2xl font-semibold" style={{ color: homeTeamColor }}>Home Team</h2>
+                            <div>
+                              <label htmlFor="homeTeamName" className="block text-sm font-medium text-gray-300 mb-1">Team Name</label>
+                              <input type="text" id="homeTeamName" value={homeTeamName} onChange={(e) => setHomeTeamName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': homeTeamColor} as React.CSSProperties} required />
+                            </div>
+                            <div>
+                              <label htmlFor="homeCoachName" className="block text-sm font-medium text-gray-300 mb-1">Coach Name</label>
+                              <input type="text" id="homeCoachName" value={homeCoachName} onChange={(e) => setHomeCoachName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': homeTeamColor} as React.CSSProperties} />
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                      <label htmlFor="homeCoachName" className="block text-sm font-medium text-gray-300 mb-1">Coach Name</label>
-                      <input type="text" id="homeCoachName" value={homeCoachName} onChange={(e) => setHomeCoachName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': homeTeamColor} as React.CSSProperties} />
-                    </div>
+                    
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label htmlFor="homeTeamColor" className="block text-sm font-medium text-gray-300 mb-1">Team Color</label>
@@ -412,20 +508,6 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onSetupComplete, onLoadMatch,
                         <select id="homeFormation" value={homeFormation} onChange={(e) => setHomeFormation(e.target.value)} className="w-full h-10 bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': homeTeamColor} as React.CSSProperties}>
                           {formations.map(f => <option key={f} value={f}>{f}</option>)}
                         </select>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Team Logo</label>
-                      <div className="flex items-center gap-4">
-                        <label htmlFor="homeTeamLogoInput" className="cursor-pointer bg-gray-800 border border-gray-600 rounded-md p-2 flex-grow text-center text-gray-400 hover:bg-gray-900 transition">
-                          {homeTeamLogo ? (
-                            <img src={homeTeamLogo} alt="Home Team Logo" className="w-16 h-16 object-contain mx-auto" />
-                          ) : (
-                            <span>Upload Logo</span>
-                          )}
-                        </label>
-                        <input id="homeTeamLogoInput" type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, setHomeTeamLogo)} />
-                        {homeTeamLogo && <button type="button" onClick={() => setHomeTeamLogo('')} className="text-red-400 hover:text-red-600 font-bold">&times; Remove</button>}
                       </div>
                     </div>
                     <div>
@@ -440,51 +522,63 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onSetupComplete, onLoadMatch,
                                               <img src={player.photo} alt={player.name} className="w-8 h-8 rounded-full object-cover bg-gray-700" />
                                           ) : (
                                               <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-gray-400">
-                                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13 8V0H7v8H0v2h7v10h6V10h7V8h-7z"/></svg>
                                               </div>
                                           )}
-                                          <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2H4zm12 3a3 3 0 11-6 0 3 3 0 016 0z" clipRule="evenodd" />
-                                              </svg>
+                                          <input id={`photo-upload-home-${player.number}`} type="file" accept="image/*" className="hidden" onChange={(e) => handlePlayerPhotoUpload(e, 'home', player.number)} />
+                                          <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                                           </div>
                                       </label>
-                                      <input id={`photo-upload-home-${player.number}`} type="file" accept="image/*" className="hidden" onChange={(e) => handlePlayerPhotoUpload(e, 'home', player.number)} />
-                                      <span className="font-mono w-8 text-center" style={{ color: homeTeamColor }}>#{player.number}</span>
-                                      <span className="truncate flex-1">{player.name}</span>
+                                      <span className="font-semibold text-gray-300">#{player.number}</span>
+                                      <span className="truncate">{player.name}</span>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-gray-400 text-xs w-16 text-right">{player.role}</span>
-                                    <button type="button" onClick={() => handleRemovePlayer('home', player.number)} className="text-red-400 hover:text-red-600 font-bold text-lg leading-none ml-2">&times;</button>
-                                  </div>
+                                  <button type="button" onClick={() => handleRemovePlayer('home', player.number)} className="text-red-400 hover:text-red-600 font-bold">&times;</button>
                               </div>
                           ))}
                       </div>
-                      <div className="flex gap-2 mt-2">
-                          <input type="number" placeholder="No." value={newHomePlayerNumber} onChange={(e) => { setNewHomePlayerNumber(e.target.value); setHomePlayerError(''); }} className="w-16 bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': homeTeamColor} as React.CSSProperties} />
-                          <input type="text" placeholder="Player Name" value={newHomePlayerName} onChange={(e) => { setNewHomePlayerName(e.target.value); setHomePlayerError(''); }} className="flex-1 bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': homeTeamColor} as React.CSSProperties} />
-                      </div>
-                      <div className="flex gap-2 mt-2">
-                        <select value={newHomePlayerRole} onChange={(e) => setNewHomePlayerRole(e.target.value as Player['role'])} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': homeTeamColor} as React.CSSProperties}>
-                              {roles.map(r => <option key={r} value={r}>{r}</option>)}
+                      <div className="mt-3 flex gap-2 items-end">
+                          <input type="number" placeholder="#" value={newHomePlayerNumber} onChange={(e) => setNewHomePlayerNumber(e.target.value)} className="w-14 bg-gray-800 border border-gray-600 rounded-md p-2 text-white" />
+                          <input type="text" placeholder="Player Name" value={newHomePlayerName} onChange={(e) => setNewHomePlayerName(e.target.value)} className="flex-1 bg-gray-800 border border-gray-600 rounded-md p-2 text-white" />
+                          <select value={newHomePlayerRole} onChange={e => setNewHomePlayerRole(e.target.value as Player['role'])} className="bg-gray-800 border border-gray-600 rounded-md p-2 text-white">
+                            {roles.map(r => <option key={r} value={r}>{r}</option>)}
                           </select>
-                          <button type="button" onClick={() => handleAddPlayer('home')} className="text-white font-bold py-2 px-3 rounded-md text-sm transition" style={{ backgroundColor: homeTeamColor }}>Add</button>
+                          <button type="button" onClick={() => handleAddPlayer('home')} className="bg-green-600 hover:bg-green-700 p-2 rounded-md font-bold">+</button>
                       </div>
-                      <div className="h-5 mt-1">{homePlayerError && <p className="text-red-400 text-xs text-center">{homePlayerError}</p>}</div>
+                      {homePlayerError && <p className="text-red-400 text-xs mt-1">{homePlayerError}</p>}
                     </div>
                   </div>
 
                   {/* Away Team */}
                   <div className="flex flex-col gap-4 bg-gray-700 p-6 rounded-lg">
-                    <h2 className="text-2xl font-semibold text-center" style={{ color: awayTeamColor }}>Away Team</h2>
-                    <div>
-                      <label htmlFor="awayTeamName" className="block text-sm font-medium text-gray-300 mb-1">Team Name</label>
-                      <input type="text" id="awayTeamName" value={awayTeamName} onChange={(e) => setAwayTeamName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': awayTeamColor} as React.CSSProperties} required />
+                    <div className="flex items-start gap-4 border-b border-gray-600 pb-4">
+                        <div className="flex flex-col items-center gap-1 w-24 flex-shrink-0">
+                            <label htmlFor="awayTeamLogoInput" className="cursor-pointer bg-gray-800 border-2 border-dashed border-gray-600 rounded-lg w-24 h-24 flex items-center justify-center text-center text-gray-400 hover:bg-gray-900 hover:border-green-500 transition">
+                              {awayTeamLogo ? (
+                                <img src={awayTeamLogo} alt="Away Team Logo" className="w-full h-full object-contain p-1" />
+                              ) : (
+                                <span className="text-xs px-1">Click to Upload Logo</span>
+                              )}
+                            </label>
+                            <input id="awayTeamLogoInput" type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, setAwayTeamLogo)} />
+                            {awayTeamLogo ? 
+                                <button type="button" onClick={() => setAwayTeamLogo('')} className="text-red-400 hover:text-red-600 text-xs font-bold h-5">Remove</button>
+                                : <div className="h-5"></div>
+                            }
+                        </div>
+                        <div className="flex-1 space-y-4">
+                            <h2 className="text-2xl font-semibold" style={{ color: awayTeamColor }}>Away Team</h2>
+                            <div>
+                              <label htmlFor="awayTeamName" className="block text-sm font-medium text-gray-300 mb-1">Team Name</label>
+                              <input type="text" id="awayTeamName" value={awayTeamName} onChange={(e) => setAwayTeamName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': awayTeamColor} as React.CSSProperties} required />
+                            </div>
+                            <div>
+                              <label htmlFor="awayCoachName" className="block text-sm font-medium text-gray-300 mb-1">Coach Name</label>
+                              <input type="text" id="awayCoachName" value={awayCoachName} onChange={(e) => setAwayCoachName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': awayTeamColor} as React.CSSProperties} />
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                      <label htmlFor="awayCoachName" className="block text-sm font-medium text-gray-300 mb-1">Coach Name</label>
-                      <input type="text" id="awayCoachName" value={awayCoachName} onChange={(e) => setAwayCoachName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': awayTeamColor} as React.CSSProperties} />
-                    </div>
+                    
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label htmlFor="awayTeamColor" className="block text-sm font-medium text-gray-300 mb-1">Team Color</label>
@@ -495,20 +589,6 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onSetupComplete, onLoadMatch,
                         <select id="awayFormation" value={awayFormation} onChange={(e) => setAwayFormation(e.target.value)} className="w-full h-10 bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': awayTeamColor} as React.CSSProperties}>
                           {formations.map(f => <option key={f} value={f}>{f}</option>)}
                         </select>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Team Logo</label>
-                      <div className="flex items-center gap-4">
-                        <label htmlFor="awayTeamLogoInput" className="cursor-pointer bg-gray-800 border border-gray-600 rounded-md p-2 flex-grow text-center text-gray-400 hover:bg-gray-900 transition">
-                          {awayTeamLogo ? (
-                            <img src={awayTeamLogo} alt="Away Team Logo" className="w-16 h-16 object-contain mx-auto" />
-                          ) : (
-                            <span>Upload Logo</span>
-                          )}
-                        </label>
-                        <input id="awayTeamLogoInput" type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, setAwayTeamLogo)} />
-                        {awayTeamLogo && <button type="button" onClick={() => setAwayTeamLogo('')} className="text-red-400 hover:text-red-600 font-bold">&times; Remove</button>}
                       </div>
                     </div>
                     <div>
@@ -523,292 +603,184 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onSetupComplete, onLoadMatch,
                                               <img src={player.photo} alt={player.name} className="w-8 h-8 rounded-full object-cover bg-gray-700" />
                                           ) : (
                                               <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-gray-400">
-                                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13 8V0H7v8H0v2h7v10h6V10h7V8h-7z"/></svg>
                                               </div>
                                           )}
-                                          <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2H4zm12 3a3 3 0 11-6 0 3 3 0 016 0z" clipRule="evenodd" />
-                                              </svg>
+                                          <input id={`photo-upload-away-${player.number}`} type="file" accept="image/*" className="hidden" onChange={(e) => handlePlayerPhotoUpload(e, 'away', player.number)} />
+                                          <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                                           </div>
                                       </label>
-                                      <input id={`photo-upload-away-${player.number}`} type="file" accept="image/*" className="hidden" onChange={(e) => handlePlayerPhotoUpload(e, 'away', player.number)} />
-                                      <span className="font-mono w-8 text-center" style={{ color: awayTeamColor }}>#{player.number}</span>
-                                      <span className="truncate flex-1">{player.name}</span>
+                                      <span className="font-semibold text-gray-300">#{player.number}</span>
+                                      <span className="truncate">{player.name}</span>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                      <span className="text-gray-400 text-xs w-16 text-right">{player.role}</span>
-                                      <button type="button" onClick={() => handleRemovePlayer('away', player.number)} className="text-red-400 hover:text-red-600 font-bold text-lg leading-none ml-2">&times;</button>
-                                  </div>
+                                  <button type="button" onClick={() => handleRemovePlayer('away', player.number)} className="text-red-400 hover:text-red-600 font-bold">&times;</button>
                               </div>
                           ))}
                       </div>
-                      <div className="flex gap-2 mt-2">
-                          <input type="number" placeholder="No." value={newAwayPlayerNumber} onChange={(e) => { setNewAwayPlayerNumber(e.target.value); setAwayPlayerError(''); }} className="w-16 bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': awayTeamColor} as React.CSSProperties} />
-                          <input type="text" placeholder="Player Name" value={newAwayPlayerName} onChange={(e) => { setNewAwayPlayerName(e.target.value); setAwayPlayerError(''); }} className="flex-1 bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': awayTeamColor} as React.CSSProperties} />
-                      </div>
-                      <div className="flex gap-2 mt-2">
-                          <select value={newAwayPlayerRole} onChange={(e) => setNewAwayPlayerRole(e.target.value as Player['role'])} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': awayTeamColor} as React.CSSProperties}>
-                              {roles.map(r => <option key={r} value={r}>{r}</option>)}
+                      <div className="mt-3 flex gap-2 items-end">
+                          <input type="number" placeholder="#" value={newAwayPlayerNumber} onChange={(e) => setNewAwayPlayerNumber(e.target.value)} className="w-14 bg-gray-800 border border-gray-600 rounded-md p-2 text-white" />
+                          <input type="text" placeholder="Player Name" value={newAwayPlayerName} onChange={(e) => setNewAwayPlayerName(e.target.value)} className="flex-1 bg-gray-800 border border-gray-600 rounded-md p-2 text-white" />
+                          <select value={newAwayPlayerRole} onChange={e => setNewAwayPlayerRole(e.target.value as Player['role'])} className="bg-gray-800 border border-gray-600 rounded-md p-2 text-white">
+                            {roles.map(r => <option key={r} value={r}>{r}</option>)}
                           </select>
-                          <button type="button" onClick={() => handleAddPlayer('away')} className="text-white font-bold py-2 px-3 rounded-md text-sm transition" style={{backgroundColor: awayTeamColor}}>Add</button>
+                          <button type="button" onClick={() => handleAddPlayer('away')} className="bg-green-600 hover:bg-green-700 p-2 rounded-md font-bold">+</button>
                       </div>
-                      <div className="h-5 mt-1">{awayPlayerError && <p className="text-red-400 text-xs text-center">{awayPlayerError}</p>}</div>
+                      {awayPlayerError && <p className="text-red-400 text-xs mt-1">{awayPlayerError}</p>}
                     </div>
                   </div>
                 </div>
               </div>
             )}
-
             {activeTab === 'match' && (
-              <div className="space-y-6 animate-fade-in-fast">
-                 <div className="bg-gray-700 p-6 rounded-lg">
-                  <h2 className="text-2xl font-semibold text-center text-white mb-4">Match Details</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="animate-fade-in-fast grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4 bg-gray-700 p-6 rounded-lg">
+                  <h3 className="text-xl font-semibold text-white">Match Details</h3>
+                  <div>
+                    <label htmlFor="leagueName" className="block text-sm font-medium text-gray-300 mb-1">League Name</label>
+                    <input type="text" id="leagueName" value={leagueName} onChange={(e) => setLeagueName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  <div>
+                    <label htmlFor="venue" className="block text-sm font-medium text-gray-300 mb-1">Venue</label>
+                    <input type="text" id="venue" value={venue} onChange={(e) => setVenue(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">League / Competition</label>
-                      <input type="text" value={leagueName} onChange={(e) => setLeagueName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-yellow-400" />
+                      <label htmlFor="matchDate" className="block text-sm font-medium text-gray-300 mb-1">Match Date</label>
+                      <input type="date" id="matchDate" value={matchDate} onChange={(e) => setMatchDate(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Venue / Stadium</label>
-                      <input type="text" value={venue} onChange={(e) => setVenue(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-yellow-400" />
+                      <label htmlFor="matchTime" className="block text-sm font-medium text-gray-300 mb-1">Time of Day</label>
+                      <input type="time" id="matchTime" value={matchTimeOfDay} onChange={(e) => setMatchTimeOfDay(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Match Date</label>
-                      <input type="date" value={matchDate} onChange={(e) => setMatchDate(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-yellow-400" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Kick-off Time</label>
-                      <input type="time" value={matchTimeOfDay} onChange={(e) => setMatchTimeOfDay(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-yellow-400" />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Weather Conditions</label>
-                       <select value={weather} onChange={(e) => setWeather(e.target.value as WeatherCondition)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-yellow-400">
-                          {weatherOptions.map(w => <option key={w} value={w}>{w}</option>)}
-                      </select>
-                    </div>
+                  </div>
+                   <div>
+                    <label htmlFor="weather" className="block text-sm font-medium text-gray-300 mb-1">Weather Condition</label>
+                    <select id="weather" value={weather} onChange={(e) => setWeather(e.target.value as WeatherCondition)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500">
+                        {weatherOptions.map(w => <option key={w} value={w}>{w}</option>)}
+                    </select>
+                  </div>
+                   <div>
+                    <label htmlFor="matchType" className="block text-sm font-medium text-gray-300 mb-1">Match Type</label>
+                    <select id="matchType" value={matchType} onChange={(e) => setMatchType(e.target.value as 'league' | 'knockout')} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500">
+                        <option value="league">League</option>
+                        <option value="knockout">Knockout</option>
+                    </select>
                   </div>
                 </div>
-                
-                 <div className="bg-gray-700 p-6 rounded-lg">
-                  <h2 className="text-2xl font-semibold text-center text-white mb-4">Match Officials</h2>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Referee</label>
-                        <input type="text" value={officials.referee} onChange={(e) => setOfficials(prev => ({...prev, referee: e.target.value}))} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-yellow-400" />
-                      </div>
-                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Asst. Referee 1</label>
-                        <input type="text" value={officials.ar1} onChange={(e) => setOfficials(prev => ({...prev, ar1: e.target.value}))} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-yellow-400" />
-                      </div>
-                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Asst. Referee 2</label>
-                        <input type="text" value={officials.ar2} onChange={(e) => setOfficials(prev => ({...prev, ar2: e.target.value}))} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-yellow-400" />
-                      </div>
-                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Fourth Official</label>
-                        <input type="text" value={officials.fourth} onChange={(e) => setOfficials(prev => ({...prev, fourth: e.target.value}))} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-yellow-400" />
-                      </div>
+                <div className="space-y-4 bg-gray-700 p-6 rounded-lg">
+                   <h3 className="text-xl font-semibold text-white">Match Officials</h3>
+                   <div>
+                    <label htmlFor="referee" className="block text-sm font-medium text-gray-300 mb-1">Referee</label>
+                    <input type="text" id="referee" value={officials.referee} onChange={(e) => setOfficials(o => ({ ...o, referee: e.target.value }))} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
                   </div>
-                 </div>
-
-                <div className="bg-gray-700 p-6 rounded-lg">
-                  <h2 className="text-2xl font-semibold text-center text-white mb-4">Match Type</h2>
-                   <div className="grid grid-cols-2 gap-4">
-                      <button
-                          type="button"
-                          onClick={() => setMatchType('league')}
-                          className={`p-4 rounded-lg text-center font-bold transition ${matchType === 'league' ? 'bg-blue-600 ring-2 ring-white' : 'bg-gray-800 hover:bg-gray-900'}`}
-                      >
-                          League
-                          <p className="text-xs font-normal text-gray-300 mt-1">Standard match, can end in a draw.</p>
-                      </button>
-                      <button
-                          type="button"
-                          onClick={() => setMatchType('knockout')}
-                          className={`p-4 rounded-lg text-center font-bold transition ${matchType === 'knockout' ? 'bg-green-600 ring-2 ring-white' : 'bg-gray-800 hover:bg-gray-900'}`}
-                      >
-                          Knockout / Cup
-                           <p className="text-xs font-normal text-gray-300 mt-1">Goes to extra time & penalties if drawn.</p>
-                      </button>
+                  <div>
+                    <label htmlFor="ar1" className="block text-sm font-medium text-gray-300 mb-1">Assistant Referee 1</label>
+                    <input type="text" id="ar1" value={officials.ar1} onChange={(e) => setOfficials(o => ({ ...o, ar1: e.target.value }))} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  <div>
+                    <label htmlFor="ar2" className="block text-sm font-medium text-gray-300 mb-1">Assistant Referee 2</label>
+                    <input type="text" id="ar2" value={officials.ar2} onChange={(e) => setOfficials(o => ({ ...o, ar2: e.target.value }))} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  <div>
+                    <label htmlFor="fourth" className="block text-sm font-medium text-gray-300 mb-1">Fourth Official</label>
+                    <input type="text" id="fourth" value={officials.fourth} onChange={(e) => setOfficials(o => ({ ...o, fourth: e.target.value }))} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
                   </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'broadcast' && (
-              <div className="space-y-6 animate-fade-in-fast">
+              <div className="animate-fade-in-fast space-y-8">
                 <div className="bg-gray-700 p-6 rounded-lg">
-                  <h2 className="text-2xl font-semibold text-center text-yellow-400 mb-4">Sponsorship & Ads</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Match Sponsor Logo</label>
-                      <div className="flex items-center gap-4">
-                        <label htmlFor="sponsorLogoInput" className="cursor-pointer bg-gray-800 border border-gray-600 rounded-md p-2 flex-grow text-center text-gray-400 hover:bg-gray-900 transition">
-                          {sponsorLogo ? (
-                            <img src={sponsorLogo} alt="Sponsor Logo" className="w-24 h-16 object-contain mx-auto" />
-                          ) : (
-                            <span>Upload Logo (e.g., 200x100)</span>
-                          )}
-                        </label>
-                        <input id="sponsorLogoInput" type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, setSponsorLogo)} />
-                        {sponsorLogo && <button type="button" onClick={() => setSponsorLogo('')} className="text-red-400 hover:text-red-600 font-bold">&times; Remove</button>}
-                      </div>
+                    <h3 className="text-xl font-semibold text-white mb-4">Scoreboard Template</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {templates.map(template => (
+                            <div key={template.id} onClick={() => handleTemplateSelect(template.id, template.isPro)}
+                                className={`relative border-4 rounded-lg overflow-hidden cursor-pointer transition-all ${selectedTemplate === template.id ? 'border-green-500' : 'border-transparent hover:border-green-400'}`}>
+                                <img src={template.image} alt={`${template.name} template`} className="w-full h-auto object-contain" />
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-2 py-1 text-center">
+                                    <span className="font-semibold">{template.name}</span>
+                                    {template.isPro && <span className="text-yellow-400 ml-2 font-bold">PRO</span>}
+                                </div>
+                            </div>
+                        ))}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Replay Ad Banner</label>
-                      <div className="flex items-center gap-4">
-                        <label htmlFor="adBannerInput" className="cursor-pointer bg-gray-800 border border-gray-600 rounded-md p-2 flex-grow text-center text-gray-400 hover:bg-gray-900 transition">
-                          {adBanner ? (
-                            <img src={adBanner} alt="Ad Banner" className="w-24 h-16 object-contain mx-auto" />
-                          ) : (
-                            <span>Upload Banner (e.g., 300x150)</span>
-                          )}
-                        </label>
-                        <input id="adBannerInput" type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, setAdBanner)} />
-                        {adBanner && <button type="button" onClick={() => setAdBanner('')} className="text-red-400 hover:text-red-600 font-bold">&times; Remove</button>}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gray-700 p-6 rounded-lg">
-                  <h2 className="text-2xl font-semibold text-center text-yellow-400 mb-4">Monetization 🏆</h2>
-                  <p className="text-center text-gray-300 mb-4">Enable Pay-Per-View or Subscription access for this stream. This is a PRO feature.</p>
-                  <div className="grid grid-cols-3 gap-4">
-                      <button
-                          type="button"
-                          onClick={() => setMonetizationModel('free')}
-                          className={`p-4 rounded-lg text-center font-bold transition ${monetizationModel === 'free' ? 'bg-gray-500 ring-2 ring-white' : 'bg-gray-800 hover:bg-gray-900'}`}
-                      >
-                          Free to Watch
-                      </button>
-                      <button
-                          type="button"
-                          onClick={() => handleMonetizationSelect('ppv')}
-                          className={`p-4 rounded-lg text-center font-bold transition relative ${monetizationModel === 'ppv' && isPro ? 'bg-green-600 ring-2 ring-white' : 'bg-gray-800 hover:bg-gray-900'}`}
-                      >
-                          Pay-Per-View
-                          {!isPro && <span className="absolute top-1 right-1 text-xs">🏆</span>}
-                      </button>
-                      <button
-                          type="button"
-                          onClick={() => handleMonetizationSelect('subscription')}
-                          className={`p-4 rounded-lg text-center font-bold transition relative ${monetizationModel === 'subscription' && isPro ? 'bg-blue-600 ring-2 ring-white' : 'bg-gray-800 hover:bg-gray-900'}`}
-                      >
-                          Subscription
-                          {!isPro && <span className="absolute top-1 right-1 text-xs">🏆</span>}
-                      </button>
-                  </div>
-                  {monetizationModel === 'ppv' && isPro && (
-                      <div className="mt-4 animate-fade-in-fast">
-                          <label htmlFor="ppvPrice" className="block text-sm font-medium text-gray-300 mb-1 text-center">Set PPV Price (USD)</label>
-                          <div className="flex items-center justify-center">
-                              <span className="text-gray-400 text-lg mr-2">$</span>
-                              <input
-                                  type="number"
-                                  id="ppvPrice"
-                                  value={ppvPrice}
-                                  onChange={(e) => setPpvPrice(parseFloat(e.target.value) || 0)}
-                                  step="0.01"
-                                  min="0.99"
-                                  className="w-32 bg-gray-800 border border-gray-600 rounded-md p-2 text-white text-center text-lg font-bold focus:ring-2 focus:ring-green-500"
-                              />
-                          </div>
-                      </div>
-                  )}
                 </div>
                 
-                <div className="bg-gray-700 p-6 rounded-lg">
-                  <h2 className="text-2xl font-semibold text-center text-yellow-400 mb-4">Commentary Settings 🏆</h2>
-                  <p className="text-center text-gray-300 mb-4">Choose the style and language for the AI commentator. This is a PRO feature.</p>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-300 mb-2 text-center">Commentary Style</label>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      {commentaryStyles.map(style => (
-                        <button
-                          key={style.id}
-                          type="button"
-                          onClick={() => handleStyleSelect(style.id)}
-                          className={`p-3 rounded-lg text-center font-bold transition text-sm relative ${commentaryStyle === style.id && isPro ? 'bg-cyan-500 ring-2 ring-white' : 'bg-gray-800 hover:bg-gray-900'}`}
-                        >
-                          {style.name}
-                          {!isPro && <span className="absolute top-1 right-1 text-xs">🏆</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2 text-center">Language</label>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                      {commentaryLanguages.map(lang => (
-                        <button
-                          key={lang.id}
-                          type="button"
-                          onClick={() => handleLanguageSelect(lang.id)}
-                          className={`p-3 rounded-lg text-center font-bold transition text-sm relative ${commentaryLanguage === lang.id && isPro ? 'bg-cyan-500 ring-2 ring-white' : 'bg-gray-800 hover:bg-gray-900'}`}
-                        >
-                          {lang.name}
-                          {!isPro && <span className="absolute top-1 right-1 text-xs">🏆</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gray-700 p-6 rounded-lg">
-                  <h2 className="text-2xl font-semibold text-center text-yellow-400 mb-4">Scoreboard Template</h2>
-                  <p className="text-center text-gray-300 mb-4">Choose a scoreboard template for your match.</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {templates.map(template => (
-                          <div 
-                              key={template.id} 
-                              className={`relative border-4 rounded-lg cursor-pointer transition-all ${selectedTemplate === template.id ? 'border-yellow-400 scale-105' : 'border-gray-600 hover:border-gray-500'}`}
-                              onClick={() => handleTemplateSelect(template.id, template.isPro)}
-                          >
-                              <img src={template.image} alt={`${template.name} template`} className="w-full h-auto rounded-md" />
-                              <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-2 text-center">
-                                  <span className="font-bold">{template.name}</span>
-                              </div>
-                              {template.isPro && !isPro && (
-                                  <div className="absolute top-2 right-2 bg-yellow-400 text-black text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                                      <span>🏆</span>
-                                      <span>PRO</span>
-                                  </div>
-                              )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="bg-gray-700 p-6 rounded-lg space-y-4">
+                      <h3 className="text-xl font-semibold text-white mb-2">AI Commentary</h3>
+                      <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">Commentary Style { !isPro && '🏆' }</label>
+                          <div className="flex flex-wrap gap-2">
+                              {commentaryStyles.map(style => (
+                                  <button key={style.id} type="button" onClick={() => handleStyleSelect(style.id)}
+                                      className={`px-3 py-1 text-sm rounded-full transition-colors ${commentaryStyle === style.id ? 'bg-blue-500 text-white' : 'bg-gray-800 hover:bg-gray-600'}`}>
+                                      {style.name}
+                                  </button>
+                              ))}
                           </div>
-                      ))}
-                  </div>
-                </div>
-                
-                <div className="bg-gray-700 p-6 rounded-lg">
-                  <h2 className="text-2xl font-semibold text-center text-yellow-400 mb-4">Broadcast Enhancements 🏆</h2>
-                  <p className="text-center text-gray-300 mb-4">Add professional, AI-driven overlays to your stream. These are PRO features.</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {broadcastStyleOptions.map(style => (
-                          <div
-                              key={style.id}
-                              onClick={() => handleBroadcastStyleToggle(style.id)}
-                              className={`relative p-4 rounded-lg cursor-pointer transition-all border-2 ${selectedBroadcastStyles.includes(style.id) && isPro ? 'bg-blue-600 border-white' : 'bg-gray-800 border-gray-600 hover:border-gray-500'} ${!isPro ? 'opacity-70' : ''}`}
-                          >
-                              <h3 className="font-bold text-white">{style.name}</h3>
-                              <p className="text-sm text-gray-300 mt-1">{style.description}</p>
-                              {!isPro && (
-                                  <div className="absolute top-2 right-2 bg-yellow-400 text-black text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                                      <span>🏆</span>
-                                      <span>PRO</span>
+                      </div>
+                      <div>
+                          <label htmlFor="commentaryLanguage" className="block text-sm font-medium text-gray-300 mb-1">Commentary Language { !isPro && '🏆' }</label>
+                          <select id="commentaryLanguage" value={commentaryLanguage} onChange={(e) => handleLanguageSelect(e.target.value as CommentaryLanguage)}
+                              className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-blue-500">
+                              {commentaryLanguages.map(lang => <option key={lang.id} value={lang.id}>{lang.name}</option>)}
+                          </select>
+                      </div>
+                      <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">Broadcast Styles { !isPro && '🏆' }</label>
+                          <div className="space-y-2">
+                              {broadcastStyleOptions.map(style => (
+                                  <div key={style.id} onClick={() => handleBroadcastStyleToggle(style.id)}
+                                      className={`p-2 rounded-md cursor-pointer transition-colors flex items-center gap-3 ${selectedBroadcastStyles.includes(style.id) ? 'bg-blue-600/30 ring-2 ring-blue-500' : 'bg-gray-800 hover:bg-gray-600'}`}>
+                                      <input type="checkbox" checked={selectedBroadcastStyles.includes(style.id)} readOnly className="form-checkbox h-5 w-5 text-blue-600 bg-gray-700 border-gray-500 rounded focus:ring-blue-500 pointer-events-none" />
+                                      <div>
+                                          <p className="font-semibold text-white">{style.name}</p>
+                                          <p className="text-xs text-gray-400">{style.description}</p>
+                                      </div>
                                   </div>
-                              )}
+                              ))}
                           </div>
-                      ))}
+                      </div>
+                  </div>
+                  <div className="bg-gray-700 p-6 rounded-lg space-y-4">
+                      <h3 className="text-xl font-semibold text-white mb-2">Monetization & Sponsorship { !isPro && '🏆' }</h3>
+                       <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">Monetization Model</label>
+                          <div className="flex gap-2">
+                              <button type="button" onClick={() => setMonetizationModel('free')} className={`flex-1 text-center p-2 rounded-lg transition-colors ${monetizationModel === 'free' ? 'bg-green-600' : 'bg-gray-800 hover:bg-gray-600'}`}>
+                                  Free
+                              </button>
+                              <button type="button" onClick={() => handleMonetizationSelect('ppv')} className={`flex-1 text-center p-2 rounded-lg transition-colors ${monetizationModel === 'ppv' ? 'bg-green-600' : 'bg-gray-800 hover:bg-gray-600'}`}>
+                                  Pay-Per-View
+                              </button>
+                          </div>
+                          {monetizationModel === 'ppv' && isPro && (
+                            <div className="mt-2">
+                                <label htmlFor="ppvPrice" className="block text-sm font-medium text-gray-300 mb-1">Price ($)</label>
+                                <input type="number" id="ppvPrice" value={ppvPrice} onChange={e => setPpvPrice(parseFloat(e.target.value))} step="0.01" min="0" className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white" />
+                            </div>
+                          )}
+                       </div>
+                       <div>
+                          <label htmlFor="sponsorLogo" className="block text-sm font-medium text-gray-300 mb-1">Sponsor Logo URL</label>
+                          <input type="text" id="sponsorLogo" value={sponsorLogo} onChange={(e) => setSponsorLogo(e.target.value)} placeholder="https://example.com/logo.png" className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white" disabled={!isPro} />
+                          {sponsorLogo && <img src={sponsorLogo} alt="Sponsor Preview" className="mt-2 max-h-16 bg-white p-1 rounded" />}
+                      </div>
+                      <div>
+                          <label htmlFor="adBanner" className="block text-sm font-medium text-gray-300 mb-1">Ad Banner URL</label>
+                          <input type="text" id="adBanner" value={adBanner} onChange={(e) => setAdBanner(e.target.value)} placeholder="https://example.com/ad.png" className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white" disabled={!isPro} />
+                          {adBanner && <img src={adBanner} alt="Ad Preview" className="mt-2 max-h-24 object-contain" />}
+                      </div>
                   </div>
                 </div>
               </div>
             )}
           </div>
-          
-          <div className="mt-8">
-            <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-transform transform hover:scale-105 disabled:bg-gray-500 disabled:cursor-not-allowed" disabled={homePlayers.length === 0 || awayPlayers.length === 0}>
+          <div className="mt-8 pt-8 border-t border-gray-700 text-center">
+            <button type="submit" className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-12 text-lg rounded-lg transition-transform transform hover:scale-105">
               Start Match
             </button>
           </div>

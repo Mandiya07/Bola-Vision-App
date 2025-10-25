@@ -45,7 +45,7 @@ const KeyPlayerSpotlight: React.FC = () => {
     return (
         <div 
             key={player.number}
-            className="absolute bottom-5 left-1/2 -translate-x-1/2 w-full max-w-3xl h-36 z-30 pointer-events-none animate-fade-in-up"
+            className="absolute bottom-1/2 left-1/2 -translate-x-1/2 translate-y-1/2 w-11/12 max-w-lg h-auto md:h-36 z-30 pointer-events-none animate-fade-in-up md:bottom-5 md:translate-y-0 md:max-w-3xl"
         >
              <div 
                 className="relative w-full h-full bg-gray-900/80 backdrop-blur-md rounded-lg shadow-2xl border-b-4 overflow-hidden animate-fade-out"
