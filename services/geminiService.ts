@@ -1,32 +1,21 @@
-import { Type, Modality, GenerateContentResponse, GenerateImagesResponse } from "@google/genai";
+
+import { GoogleGenAI, Type, Modality, GenerateContentResponse, GenerateImagesResponse } from "@google/genai";
 import type { GameEvent, MatchState, Point, CommentaryStyle, CommentaryExcitement, Player, Team, AiDrawing, TacticalSuggestion, CommentaryLanguage, WinProbability, Highlight, SocialPostEvent, MatchPeriod } from '../types';
 import { PoseLandmarker, DrawingUtils } from '@mediapipe/tasks-vision';
 
-// All API calls are now routed through our own secure serverless function.
-const PROXY_ENDPOINT = '/.netlify/functions/gemini-proxy';
+declare var process: {
+  env: {
+    API_KEY: string;
+  }
+};
 
-/**
- * A helper function to call our secure serverless proxy.
- * @param method The Gemini API method to call (e.g., 'generateContent', 'generateImages').
- * @param params The parameters object to be passed to the Gemini API.
- * @returns The JSON response from the Gemini API, forwarded by our proxy.
- */
-async function callProxy(method: 'generateContent' | 'generateImages', params: any): Promise<any> {
-    const response = await fetch(PROXY_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        // The body is structured to be easily parsed by our Netlify function.
-        body: JSON.stringify({ method, params }),
-    });
-    
-    if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({ error: 'Proxy request failed with non-JSON response' }));
-        console.error('Proxy Error:', errorBody);
-        throw new Error(errorBody.error || `Proxy request failed: ${response.statusText}`);
-    }
-    
-    return response.json();
-}
+const handleApiError = (error: any) => {
+  if (error instanceof Error && (error.message.includes("API key not valid") || error.message.includes("Requested entity was not found"))) {
+    console.error("API Key Error Detected. Dispatching event to reset key selection.");
+    window.dispatchEvent(new CustomEvent('invalid-api-key'));
+  }
+  throw error;
+};
 
 export const getEventDescription = (event: GameEvent): string => {
     const playerIdentifier = event.playerName
@@ -126,8 +115,9 @@ export const generateCommentary = async (event: GameEvent, matchState: MatchStat
     const prompt = `Game Context: ${gameContext}\n\nEvent: ${eventDescription}\n\nCommentary:`;
 
     try {
-        const response: GenerateContentResponse = await callProxy('generateContent', {
-            model: model,
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model,
             contents: prompt,
             config: {
                 systemInstruction: systemInstruction,
@@ -135,8 +125,8 @@ export const generateCommentary = async (event: GameEvent, matchState: MatchStat
         });
         return { text: (response.text || '').trim(), excitement };
     } catch (error) {
-        console.error('Error generating commentary via proxy:', error);
-        throw error;
+        console.error('Error generating commentary:', error);
+        handleApiError(error);
     }
 };
 
@@ -156,7 +146,8 @@ export const generateSpeech = async (text: string, style: CommentaryStyle, excit
     const prompt = `${instruction} ${text}`;
     
     try {
-        const response: GenerateContentResponse = await callProxy('generateContent', {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateContentResponse = await ai.models.generateContent({
             model,
             contents: [{ parts: [{ text: prompt }] }],
             config: {
@@ -174,11 +165,11 @@ export const generateSpeech = async (text: string, style: CommentaryStyle, excit
         if (base64Audio) {
             return base64Audio;
         } else {
-            throw new Error("No audio data received from API proxy.");
+            throw new Error("No audio data received from API.");
         }
     } catch (error) {
-        console.error('Error generating speech via proxy:', error);
-        throw error;
+        console.error('Error generating speech:', error);
+        handleApiError(error);
     }
 };
 
@@ -216,8 +207,9 @@ export const analyzeVideoFrame = async (base64Frame: string, matchState: MatchSt
     `;
 
     try {
-        const response: GenerateContentResponse = await callProxy('generateContent', {
-            model: model,
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model,
             contents: {
                 parts: [
                     { inlineData: { mimeType: 'image/jpeg', data: base64Frame } },
@@ -251,8 +243,9 @@ export const analyzeVideoFrame = async (base64Frame: string, matchState: MatchSt
         return null;
 
     } catch (error) {
-        console.error('Error analyzing video frame via proxy:', error);
-        return null;
+        console.error('Error analyzing video frame:', error);
+        handleApiError(error);
+        return null; // Ensure null is returned on error
     }
 }
 
@@ -284,7 +277,8 @@ export const analyzeRefereeDecision = async (base64Frame: string, event: GameEve
     `;
 
     try {
-        const response: GenerateContentResponse = await callProxy('generateContent', {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateContentResponse = await ai.models.generateContent({
             model,
             contents: {
                 parts: [
@@ -312,8 +306,8 @@ export const analyzeRefereeDecision = async (base64Frame: string, event: GameEve
         };
 
     } catch (e) {
-        console.error("Error generating VAR decision via proxy:", e);
-        throw new Error("The AI VAR system is currently unavailable.");
+        console.error("Error generating VAR decision:", e);
+        handleApiError(e);
     }
 };
 
@@ -366,8 +360,9 @@ export const advancedFrameAnalysis = async (
     `;
 
     try {
-        const response: GenerateContentResponse = await callProxy('generateContent', {
-            model: model,
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model,
             contents: {
                 parts: [
                     { inlineData: { mimeType: 'image/jpeg', data: annotatedFrameBase64 } },
@@ -400,7 +395,8 @@ export const advancedFrameAnalysis = async (
         return null;
 
     } catch (error) {
-        console.error('Error in advanced frame analysis via proxy:', error);
+        console.error('Error in advanced frame analysis:', error);
+        handleApiError(error);
         return null;
     }
 };
@@ -442,7 +438,8 @@ export const getTacticalSuggestion = async (base64Frame: string, matchState: Mat
     `;
 
     try {
-        const response: GenerateContentResponse = await callProxy('generateContent', {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateContentResponse = await ai.models.generateContent({
             model,
             contents: {
                 parts: [
@@ -499,8 +496,8 @@ export const getTacticalSuggestion = async (base64Frame: string, matchState: Mat
         
         return JSON.parse(response.text || '{}') as TacticalSuggestion;
     } catch(e) {
-        console.error("Error generating tactical suggestion via proxy:", e);
-        throw new Error("The AI tactician is currently unavailable.");
+        console.error("Error generating tactical suggestion:", e);
+        handleApiError(e);
     }
 };
 
@@ -518,11 +515,12 @@ export const generatePreMatchHype = async (homeTeam: Team, awayTeam: Team): Prom
     `;
 
     try {
-        const response: GenerateContentResponse = await callProxy('generateContent', { model, contents: prompt });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateContentResponse = await ai.models.generateContent({ model, contents: prompt });
         return (response.text || '').trim();
     } catch (error) {
-        console.error('Error generating pre-match hype via proxy:', error);
-        throw new Error('Could not generate pre-match hype.');
+        console.error('Error generating pre-match hype:', error);
+        handleApiError(error);
     }
 };
 
@@ -586,11 +584,12 @@ export const generateSocialMediaPost = async (event: SocialPostEvent, matchState
     `;
     
     try {
-        const response: GenerateContentResponse = await callProxy('generateContent', { model, contents: prompt });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateContentResponse = await ai.models.generateContent({ model, contents: prompt });
         return (response.text || '').trim();
     } catch (error) {
-        console.error('Error generating social media post via proxy:', error);
-        throw new Error('Could not generate social media post.');
+        console.error('Error generating social media post:', error);
+        handleApiError(error);
     }
 };
 
@@ -631,13 +630,14 @@ export const generateSocialMediaImage = async (event: SocialPostEvent, matchStat
     const prompt = `${eventDetails} The home team is ${homeTeam.name} (colors: ${homeTeam.color}) and the away team is ${awayTeam.name} (colors: ${awayTeam.color}). ${stylePrompt} The image should NOT contain any text, letters, or numbers.`;
 
     try {
-        const response: GenerateImagesResponse = await callProxy('generateImages', {
-            model: model,
-            prompt: prompt,
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateImagesResponse = await ai.models.generateImages({
+            model,
+            prompt,
             config: {
               numberOfImages: 1,
               outputMimeType: 'image/jpeg',
-              aspectRatio: '1:1', // Square for social media
+              aspectRatio: '1:1',
             },
         });
 
@@ -649,8 +649,8 @@ export const generateSocialMediaImage = async (event: SocialPostEvent, matchStat
 
         return base64ImageBytes;
     } catch (error) {
-        console.error('Error generating social media image via proxy:', error);
-        throw new Error('Could not generate social media image.');
+        console.error('Error generating social media image:', error);
+        handleApiError(error);
     }
 }
 
@@ -667,14 +667,15 @@ export const generatePlayerSpotlightText = async (player: Player, team: Team): P
     `;
 
     try {
-        const response: GenerateContentResponse = await callProxy('generateContent', {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateContentResponse = await ai.models.generateContent({
             model,
             contents: prompt,
         });
         return (response.text || '').trim();
     } catch (error) {
-        console.error('Error generating player spotlight text via proxy:', error);
-        throw new Error('Could not generate player analysis.');
+        console.error('Error generating player spotlight text:', error);
+        handleApiError(error);
     }
 };
 
@@ -714,11 +715,12 @@ export const generateMatchSummary = async (matchState: MatchState): Promise<stri
     `;
     
     try {
-        const response: GenerateContentResponse = await callProxy('generateContent', { model, contents: prompt });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateContentResponse = await ai.models.generateContent({ model, contents: prompt });
         return (response.text || '').trim();
     } catch (error) {
-        console.error('Error generating match summary via proxy:', error);
-        throw new Error('Could not generate match summary.');
+        console.error('Error generating match summary:', error);
+        handleApiError(error);
     }
 };
 
@@ -757,7 +759,8 @@ export const selectPlayerOfTheMatch = async (matchState: MatchState): Promise<{ 
     `;
 
     try {
-        const response: GenerateContentResponse = await callProxy('generateContent', {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateContentResponse = await ai.models.generateContent({
             model,
             contents: prompt,
             config: {
@@ -768,13 +771,13 @@ export const selectPlayerOfTheMatch = async (matchState: MatchState): Promise<{ 
                         playerNumber: { type: Type.INTEGER },
                         teamName: { type: Type.STRING },
                         reasoning: { type: Type.STRING }
-                    }
+                    },
+                    required: ["playerNumber", "teamName", "reasoning"]
                 }
             }
         });
         
         const result = JSON.parse(response.text || '{}');
-        // Logic to find player from result remains the same.
         const allPlayers = [
             ...matchState.homeTeam.players.map(p => ({ ...p, teamName: matchState.homeTeam.name })),
             ...matchState.awayTeam.players.map(p => ({ ...p, teamName: matchState.awayTeam.name }))
@@ -798,8 +801,8 @@ export const selectPlayerOfTheMatch = async (matchState: MatchState): Promise<{ 
         }
 
     } catch (error) {
-        console.error('Error selecting Player of the Match via proxy:', error);
-        throw new Error('Could not select Player of the Match.');
+        console.error('Error selecting Player of the Match:', error);
+        handleApiError(error);
     }
 };
 
@@ -815,11 +818,12 @@ export const translateText = async (text: string, targetLanguage: CommentaryLang
 `;
 
     try {
-        const response: GenerateContentResponse = await callProxy('generateContent', { model, contents: prompt });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateContentResponse = await ai.models.generateContent({ model, contents: prompt });
         return (response.text || '').trim();
     } catch (error) {
-        console.error(`Error translating text via proxy to ${targetLanguage}:`, error);
-        throw new Error("Translation failed.");
+        console.error(`Error translating text to ${targetLanguage}:`, error);
+        handleApiError(error);
     }
 };
 
@@ -852,7 +856,8 @@ export const getWinProbability = async (matchState: MatchState): Promise<WinProb
     `;
 
     try {
-        const response: GenerateContentResponse = await callProxy('generateContent', {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateContentResponse = await ai.models.generateContent({
             model,
             contents: prompt,
             config: {
@@ -871,7 +876,6 @@ export const getWinProbability = async (matchState: MatchState): Promise<WinProb
 
         const result = JSON.parse(response.text || '{}');
         
-        // Normalize probabilities to ensure they sum to 1
         const sum = result.home + result.away + result.draw;
         if (sum > 0) {
             return {
@@ -883,8 +887,8 @@ export const getWinProbability = async (matchState: MatchState): Promise<WinProb
         return { home: 0.33, away: 0.33, draw: 0.34 }; // Fallback
 
     } catch (error) {
-        console.error('Error getting win probability via proxy:', error);
-        throw new Error('Could not calculate win probability.');
+        console.error('Error getting win probability:', error);
+        handleApiError(error);
     }
 };
 
@@ -924,7 +928,8 @@ export const generateHighlightReelSequence = async (highlights: Highlight[], mat
     `;
     
     try {
-        const response: GenerateContentResponse = await callProxy('generateContent', {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateContentResponse = await ai.models.generateContent({
             model,
             contents: prompt,
             config: {
@@ -943,8 +948,8 @@ export const generateHighlightReelSequence = async (highlights: Highlight[], mat
             throw new Error("AI returned an invalid sequence format.");
         }
     } catch(e) {
-        console.error("Error generating highlight reel sequence via proxy:", e);
-        throw new Error("The AI producer is currently unavailable.");
+        console.error("Error generating highlight reel sequence:", e);
+        handleApiError(e);
     }
 };
 
@@ -980,10 +985,11 @@ export const generateHalfTimeAnalysis = async (matchState: MatchState, period: '
     `;
     
     try {
-        const response: GenerateContentResponse = await callProxy('generateContent', { model, contents: prompt });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response: GenerateContentResponse = await ai.models.generateContent({ model, contents: prompt });
         return (response.text || '').trim();
     } catch (error) {
-        console.error('Error generating half-time analysis via proxy:', error);
-        throw new Error('Could not generate tactical analysis.');
+        console.error('Error generating half-time analysis:', error);
+        handleApiError(error);
     }
 };

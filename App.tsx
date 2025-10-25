@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import SetupScreen from './components/SetupScreen';
 import MatchScreen from './components/MatchScreen';
 import LineupScreen from './components/LineupScreen';
@@ -13,10 +13,10 @@ import SelectKeyScreen from './components/SelectKeyScreen';
 import { MatchContextProvider, useMatchContext } from './context/MatchContext';
 import { ProContextProvider, useProContext } from './context/ProContext';
 import type { Player, Team, MatchState, Monetization, CommentaryStyle, CommentaryLanguage, BroadcastStyle, Official, WeatherCondition } from './types';
-import { MailIcon, LockIcon, LogoutIcon, UserIcon } from './components/icons/ControlIcons';
+import { MailIcon, LockIcon, LogoutIcon } from './components/icons/ControlIcons';
 import { decode } from './utils/mediaUtils';
 
-type MatchPhase = 'setup' | 'lineup' | 'calibration' | 'live' | 'postMatch' | 'fanView';
+type MatchPhase = 'setup' | 'lineup' | 'calibration' | 'live' | 'postMatch';
 
 
 const AuthScreen: React.FC<{ onLogin: () => void; onGuest: () => void }> = ({ onLogin, onGuest }) => {
@@ -27,7 +27,6 @@ const AuthScreen: React.FC<{ onLogin: () => void; onGuest: () => void }> = ({ on
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // This is a mock authentication. In a real app, you'd call an API.
     if (!email || !password) {
       setError('Please fill in all fields.');
       return;
@@ -117,7 +116,11 @@ const ShareModalWrapper: React.FC = () => {
     )
 }
 
-const MainApplication: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+interface MainApplicationProps {
+  onLogout: () => void;
+}
+
+const MainApplication: React.FC<MainApplicationProps> = ({ onLogout }) => {
   const [matchPhase, setMatchPhase] = useState<MatchPhase>('setup');
   const [teams, setTeams] = useState<{ home: Team; away: Team } | null>(null);
   const [officials, setOfficials] = useState<Official[]>([]);
@@ -128,112 +131,27 @@ const MainApplication: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [commentaryStyle, setCommentaryStyle] = useState<CommentaryStyle>('professional');
   const [commentaryLanguage, setCommentaryLanguage] = useState<CommentaryLanguage>('english');
   const [broadcastStyles, setBroadcastStyles] = useState<BroadcastStyle[]>([]);
-  const [loadedMatchState, setLoadedMatchState] = useState<MatchState | null>(null);
   const [matchType, setMatchType] = useState<'league' | 'knockout'>('league');
-  const [leagueName, setLeagueName] = useState('');
-  const [matchDate, setMatchDate] = useState('');
-  const [matchTimeOfDay, setMatchTimeOfDay] = useState('');
-  const [venue, setVenue] = useState('');
+  const [leagueName, setLeagueName] = useState<string>('');
+  const [matchDate, setMatchDate] = useState<string>('');
+  const [matchTimeOfDay, setMatchTimeOfDay] = useState<string>('');
+  const [venue, setVenue] = useState<string>('');
   const [weather, setWeather] = useState<WeatherCondition>('Clear');
-  const { isPro, setIsPro } = useProContext();
 
-  useEffect(() => {
-    const handleDeepLink = () => {
-      const params = new URLSearchParams(window.location.search);
-      const matchDataParam = params.get('matchData');
-      const isFanView = params.get('view') === 'true';
+  const [loadedState, setLoadedState] = useState<MatchState | null>(null);
 
-      if (matchDataParam) {
-        try {
-          // UTF-8 safe base64 decoding
-          const decodedBytes = decode(matchDataParam);
-          const decodedJson = new TextDecoder().decode(decodedBytes);
-          const matchDetails = JSON.parse(decodedJson);
-
-          // Handle broadcast tier: 'main' gets temporary Pro access.
-          if (matchDetails.broadcastTier === 'main' && !isFanView) {
-            console.log("Main Broadcast detected. Granting temporary Pro access.");
-            setIsPro(true);
-          } else {
-            // 'fan' or undefined tier uses the free version, unless user is logged in
-            if (!localStorage.getItem('bolavision_user')) {
-                setIsPro(false);
-            }
-          }
-
-          const emptyStats = { goals: 0, assists: 0, shots: 0, passes: 0, tackles: 0, saves: 0 };
-          
-          const homeTeam: Team = {
-            ...matchDetails.homeTeam,
-            players: matchDetails.homeTeam.players.map((p: Omit<Player, 'stats'>) => ({ ...p, stats: { ...emptyStats } }))
-          };
-
-          const awayTeam: Team = {
-            ...matchDetails.awayTeam,
-            players: matchDetails.awayTeam.players.map((p: Omit<Player, 'stats'>) => ({ ...p, stats: { ...emptyStats } }))
-          };
-          
-          const commonSetup = {
-              homeTeam,
-              awayTeam,
-              template: matchDetails.scoreboardTemplate || 'default',
-              monetization: matchDetails.monetization || { model: 'free' },
-              style: matchDetails.commentaryStyle || 'professional',
-              lang: matchDetails.commentaryLanguage || 'english',
-              styles: matchDetails.broadcastStyles || [],
-              matchType: matchDetails.matchType || 'league',
-              officials: matchDetails.officials || [],
-              leagueName: matchDetails.leagueName || '',
-              matchDate: matchDetails.matchDate || '',
-              matchTimeOfDay: matchDetails.matchTimeOfDay || '',
-              venue: matchDetails.venue || '',
-              weather: matchDetails.weather || 'Clear',
-              sponsorLogo: matchDetails.sponsorLogo,
-              adBanner: matchDetails.adBanner
-          };
-
-          if (isFanView) {
-            handleMatchSetup(
-                commonSetup.homeTeam, commonSetup.awayTeam, commonSetup.template,
-                commonSetup.monetization, commonSetup.style, commonSetup.lang,
-                commonSetup.styles, commonSetup.matchType, commonSetup.officials,
-                commonSetup.leagueName, commonSetup.matchDate, commonSetup.matchTimeOfDay,
-                commonSetup.venue, commonSetup.weather, commonSetup.sponsorLogo,
-                commonSetup.adBanner, true
-            );
-          } else {
-            handleMatchSetup(
-                commonSetup.homeTeam, commonSetup.awayTeam, commonSetup.template,
-                commonSetup.monetization, commonSetup.style, commonSetup.lang,
-                commonSetup.styles, commonSetup.matchType, commonSetup.officials,
-                commonSetup.leagueName, commonSetup.matchDate, commonSetup.matchTimeOfDay,
-                commonSetup.venue, commonSetup.weather, commonSetup.sponsorLogo,
-                commonSetup.adBanner, false
-            );
-          }
-
-        } catch (error) {
-          console.error("Failed to parse deep link match data:", error);
-           if (!localStorage.getItem('bolavision_user')) {
-                setIsPro(false);
-           }
-        }
-      }
-    };
-
-    handleDeepLink();
-  }, [setIsPro]); 
-
-
-  const handleMatchSetup = (homeTeam: Team, awayTeam: Team, template: string, monetization: Monetization, style: CommentaryStyle, lang: CommentaryLanguage, styles: BroadcastStyle[], matchType: 'league' | 'knockout', officials: Official[], leagueName: string, matchDate: string, matchTimeOfDay: string, venue: string, weather: WeatherCondition, sponsorLogo?: string, adBanner?: string, isFanView: boolean = false) => {
+  const handleSetupComplete = (
+    homeTeam: Team, awayTeam: Team, template: string, monetization: Monetization, commentaryStyle: CommentaryStyle,
+    commentaryLanguage: CommentaryLanguage, broadcastStyles: BroadcastStyle[], matchType: 'league' | 'knockout',
+    officials: Official[], leagueName: string, matchDate: string, matchTimeOfDay: string, venue: string,
+    weather: WeatherCondition, sponsorLogo?: string, adBanner?: string
+  ) => {
     setTeams({ home: homeTeam, away: awayTeam });
-    setSponsorLogo(sponsorLogo);
-    setAdBanner(adBanner);
     setScoreboardTemplate(template);
     setMonetization(monetization);
-    setCommentaryStyle(style);
-    setCommentaryLanguage(lang);
-    setBroadcastStyles(styles);
+    setCommentaryStyle(commentaryStyle);
+    setCommentaryLanguage(commentaryLanguage);
+    setBroadcastStyles(broadcastStyles);
     setMatchType(matchType);
     setOfficials(officials);
     setLeagueName(leagueName);
@@ -241,29 +159,20 @@ const MainApplication: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     setMatchTimeOfDay(matchTimeOfDay);
     setVenue(venue);
     setWeather(weather);
-    setLoadedMatchState(null); // Clear any previously loaded state
-    setMatchPhase(isFanView ? 'fanView' : 'lineup');
+    setSponsorLogo(sponsorLogo);
+    setAdBanner(adBanner);
+    setLoadedState(null); 
+    setMatchPhase('lineup');
   };
-  
+
   const handleLoadMatch = (savedState: MatchState) => {
-    setLoadedMatchState(savedState);
-    setTeams(null); // Clear any new team setup
-    setOfficials(savedState.officials || []);
-    setLeagueName(savedState.leagueName || '');
-    setMatchDate(savedState.matchDate || '');
-    setMatchTimeOfDay(savedState.matchTimeOfDay || '');
-    setVenue(savedState.venue || '');
-    setWeather(savedState.weather || 'Clear');
-    setMatchPhase(savedState.fieldMapping ? 'live' : 'calibration');
+    setLoadedState(savedState);
+    setMatchPhase('live');
   };
 
   const handleLineupsConfirmed = (homeTeam: Team, awayTeam: Team) => {
     setTeams({ home: homeTeam, away: awayTeam });
     setMatchPhase('calibration');
-  };
-  
-  const handleCalibrationComplete = () => {
-    setMatchPhase('live');
   };
 
   const handleEndMatch = () => {
@@ -271,167 +180,179 @@ const MainApplication: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   };
 
   const handleReturnToSetup = () => {
-    setMatchPhase('setup');
     setTeams(null);
-    setOfficials([]);
-    setSponsorLogo(undefined);
-    setAdBanner(undefined);
-    setLoadedMatchState(null);
-    setLeagueName('');
-    setMatchDate('');
-    setMatchTimeOfDay('');
-    setVenue('');
-    setWeather('Clear');
-    // Revoke temporary Pro status, but NOT if the user is permanently logged in.
-    const user = localStorage.getItem('bolavision_user');
-    if (!user) {
-      setIsPro(false);
-    }
-  };
-  
-  const renderContent = () => {
-    const inMatchPhases: MatchPhase[] = ['calibration', 'live', 'postMatch', 'fanView'];
+    setLoadedState(null);
+    setMatchPhase('setup');
+  }
 
-    if (inMatchPhases.includes(matchPhase)) {
-       if (!teams && !loadedMatchState) {
-         return <SetupScreen onSetupComplete={handleMatchSetup} onLoadMatch={handleLoadMatch} onLogout={onLogout} />;
-       }
-
-       const initialTeams = loadedMatchState ? { home: loadedMatchState.homeTeam, away: loadedMatchState.awayTeam } : teams!;
-       const isFanView = matchPhase === 'fanView';
-      
-       return (
-          <MatchContextProvider 
-              initialState={loadedMatchState ?? undefined} 
-              homeTeam={initialTeams.home} 
-              awayTeam={initialTeams.away}
-              sponsorLogo={loadedMatchState?.sponsorLogo ?? sponsorLogo}
-              adBanner={loadedMatchState?.adBanner ?? adBanner}
-              scoreboardTemplate={loadedMatchState?.scoreboardTemplate ?? scoreboardTemplate}
-              monetization={loadedMatchState?.monetization ?? monetization}
-              commentaryStyle={loadedMatchState?.commentaryStyle ?? commentaryStyle}
-              commentaryLanguage={loadedMatchState?.commentaryLanguage ?? commentaryLanguage}
-              broadcastStyles={loadedMatchState?.broadcastStyles ?? broadcastStyles}
-              matchType={loadedMatchState?.matchType ?? matchType}
-              officials={loadedMatchState?.officials ?? officials}
-              leagueName={loadedMatchState?.leagueName ?? leagueName}
-              matchDate={loadedMatchState?.matchDate ?? matchDate}
-              matchTimeOfDay={loadedMatchState?.matchTimeOfDay ?? matchTimeOfDay}
-              venue={loadedMatchState?.venue ?? venue}
-              weather={loadedMatchState?.weather ?? weather}
-              isFanView={isFanView}
-            >
-              {matchPhase === 'fanView' && <FanViewScreen />}
-              {matchPhase === 'calibration' && <CalibrationScreen onCalibrationComplete={handleCalibrationComplete} />}
-              {matchPhase === 'live' && <MatchScreen onEndMatch={handleEndMatch} />}
-              {matchPhase === 'postMatch' && <PostMatchScreen onReturnToSetup={handleReturnToSetup} />}
-              <SocialMediaModalWrapper />
-              <ShareModalWrapper />
-            </MatchContextProvider>
-        );
-    }
-    
-    switch (matchPhase) {
-      case 'lineup':
-        if (teams) {
-          return <LineupScreen homeTeam={teams.home} awayTeam={teams.away} leagueName={leagueName} matchDate={matchDate} matchTimeOfDay={matchTimeOfDay} venue={venue} onLineupsConfirmed={handleLineupsConfirmed} />;
-        }
-        return <SetupScreen onSetupComplete={handleMatchSetup} onLoadMatch={handleLoadMatch} onLogout={onLogout} />;
-      
-      case 'setup':
-      default:
-        return <SetupScreen onSetupComplete={handleMatchSetup} onLoadMatch={handleLoadMatch} onLogout={onLogout} />;
-    }
+  const matchContextProps = {
+    homeTeam: teams?.home,
+    awayTeam: teams?.away,
+    initialState: loadedState,
+    sponsorLogo: sponsorLogo,
+    adBanner: adBanner,
+    scoreboardTemplate: scoreboardTemplate,
+    monetization: monetization,
+    commentaryStyle: commentaryStyle,
+    commentaryLanguage: commentaryLanguage,
+    broadcastStyles: broadcastStyles,
+    matchType: matchType,
+    officials: officials,
+    leagueName: leagueName,
+    matchDate: matchDate,
+    matchTimeOfDay: matchTimeOfDay,
+    venue: venue,
+    weather: weather,
   };
 
-  return <>{renderContent()}</>;
+  switch (matchPhase) {
+    case 'setup':
+      return <SetupScreen onSetupComplete={handleSetupComplete} onLoadMatch={handleLoadMatch} onLogout={onLogout} />;
+    case 'lineup':
+      if (!teams) return null;
+      return (
+        <LineupScreen
+          homeTeam={teams.home}
+          awayTeam={teams.away}
+          onLineupsConfirmed={handleLineupsConfirmed}
+          leagueName={leagueName}
+          matchDate={matchDate}
+          matchTimeOfDay={matchTimeOfDay}
+          venue={venue}
+        />
+      );
+    case 'calibration':
+      return (
+        <MatchContextProvider {...matchContextProps}>
+          <CalibrationScreen onCalibrationComplete={() => setMatchPhase('live')} />
+        </MatchContextProvider>
+      );
+    case 'live':
+      return (
+        <MatchContextProvider {...matchContextProps}>
+          <MatchScreen onEndMatch={handleEndMatch} />
+          <SocialMediaModalWrapper />
+          <ShareModalWrapper />
+        </MatchContextProvider>
+      );
+    case 'postMatch':
+      return (
+        <MatchContextProvider {...matchContextProps}>
+          <PostMatchScreen onReturnToSetup={handleReturnToSetup} />
+          <SocialMediaModalWrapper />
+        </MatchContextProvider>
+      );
+    default:
+      return <p>Invalid match phase</p>;
+  }
 };
 
-const AppContent: React.FC = () => {
-    const [appState, setAppState] = useState<'checking' | 'auth' | 'main' | 'selectKey'>('checking');
-    const { setIsPro } = useProContext();
-    const [hasApiKey, setHasApiKey] = useState(false);
-
-    useEffect(() => {
-        // Handle API key re-selection events from the Gemini service
-        const handleReselect = () => setHasApiKey(false);
-        window.addEventListener('reselect-api-key', handleReselect);
-        return () => window.removeEventListener('reselect-api-key', handleReselect);
-    }, []);
-
-    useEffect(() => {
-        const checkKeyAndAuth = async () => {
-            // @ts-ignore - aistudio is globally available in this environment
-            const keySelected = await window.aistudio.hasSelectedApiKey();
-            setHasApiKey(keySelected);
-
-            if (!keySelected) {
-                setAppState('selectKey');
-                return;
-            }
-
-            const user = localStorage.getItem('bolavision_user');
-            if (user) {
-                setIsPro(true);
-                setAppState('main');
-            } else {
-                setAppState('auth');
-            }
-        };
-        checkKeyAndAuth();
-    }, [setIsPro, hasApiKey]);
-
-    const handleLogin = () => {
-        localStorage.setItem('bolavision_user', JSON.stringify({ email: 'pro@bolavision.com', status: 'pro' }));
-        setIsPro(true);
-        setAppState('main');
-    };
-
-    const handleGuest = () => {
-        setIsPro(false);
-        setAppState('main');
-    };
-    
-    const handleLogout = () => {
-        localStorage.removeItem('bolavision_user');
-        setIsPro(false);
-        setAppState('auth');
-    };
-
-    const renderCurrentState = () => {
-        switch(appState) {
-            case 'checking':
-                return (
-                    <div className="flex flex-col items-center justify-center min-h-screen">
-                        <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-                        <p className="mt-4 text-gray-300">Initializing...</p>
-                    </div>
-                );
-            case 'selectKey':
-                return <SelectKeyScreen onKeySelected={() => setHasApiKey(true)} />;
-            case 'auth':
-                return <AuthScreen onLogin={handleLogin} onGuest={handleGuest} />;
-            case 'main':
-                return <MainApplication onLogout={handleLogout} />;
-        }
-    };
-    
-    return (
-        <>
-            {renderCurrentState()}
-            <UpgradeModal />
-        </>
-    );
-}
 
 const App: React.FC = () => {
-  return (
-    <ProContextProvider>
-      <div className="min-h-screen bg-gray-900 font-sans">
-        <AppContent />
+  const { setIsPro } = useProContext();
+
+  const deepLinkData = useMemo(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const matchDataParam = urlParams.get('matchData');
+    const isFanViewParam = urlParams.get('view');
+
+    if (matchDataParam && isFanViewParam === 'true') {
+      try {
+        const decodedData = decode(matchDataParam);
+        const jsonString = new TextDecoder().decode(decodedData);
+        const matchDetails = JSON.parse(jsonString);
+        return { matchDetails, isFanView: true };
+      } catch (e) {
+        console.error("Failed to parse deep link data:", e);
+        return null;
+      }
+    }
+    return null;
+  }, []);
+
+  if (deepLinkData) {
+    return (
+      <MatchContextProvider initialState={deepLinkData.matchDetails} isFanView={true}>
+        <FanViewScreen />
+      </MatchContextProvider>
+    );
+  }
+
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
+  const [hasSelectedKey, setHasSelectedKey] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  useEffect(() => {
+    const initializeCreatorFlow = async () => {
+      // @ts-ignore
+      if (window.aistudio && await window.aistudio.hasSelectedApiKey()) {
+        setHasSelectedKey(true);
+      }
+      setIsInitializing(false);
+    };
+
+    initializeCreatorFlow();
+  }, []);
+
+  useEffect(() => {
+    const handleInvalidKey = () => {
+        console.log("Invalid API key event received. Resetting key selection.");
+        setHasSelectedKey(false);
+    };
+    window.addEventListener('invalid-api-key', handleInvalidKey);
+    return () => {
+        window.removeEventListener('invalid-api-key', handleInvalidKey);
+    };
+  }, []);
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+    setIsGuest(false);
+    setIsPro(true);
+  };
+  
+  const handleGuest = () => {
+    setIsAuthenticated(true);
+    setIsGuest(true);
+    setIsPro(false);
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setIsGuest(false);
+    setIsPro(false);
+  };
+
+  const handleKeySelected = () => {
+    setHasSelectedKey(true);
+  };
+
+  if (isInitializing) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="ml-4 text-xl">Initializing...</p>
       </div>
-    </ProContextProvider>
-  );
+    );
+  }
+
+  if (!hasSelectedKey) {
+    return <SelectKeyScreen onKeySelected={handleKeySelected} />;
+  }
+  
+  if (!isAuthenticated) {
+    return <AuthScreen onLogin={handleLogin} onGuest={handleGuest} />;
+  }
+
+  return <MainApplication onLogout={handleLogout} />;
 };
 
-export default App;
+const AppWrapper: React.FC = () => (
+  <ProContextProvider>
+    <UpgradeModal />
+    <App />
+  </ProContextProvider>
+);
+
+export default AppWrapper;
