@@ -1,7 +1,3 @@
-
-
-
-
 import { GoogleGenAI, Type, Modality, GenerateContentResponse, GenerateImagesResponse } from "@google/genai";
 import type { GameEvent, MatchState, Point, CommentaryStyle, CommentaryExcitement, Player, Team, AiDrawing, TacticalSuggestion, CommentaryLanguage, WinProbability, Highlight, SocialPostEvent, MatchPeriod } from '../types';
 import { PoseLandmarker, DrawingUtils } from '@mediapipe/tasks-vision';
@@ -343,48 +339,67 @@ export const advancedFrameAnalysis = async (
       landmarkSet.map((l, index) => ({ index, x: l.x.toFixed(3), y: l.y.toFixed(3), v: l.visibility?.toFixed(3) }))
     ));
 
-    const prompt = `
-        You are a world-class football (soccer) analyst and AI expert. Your task is to analyze an annotated frame from a match, which includes detected player poses, to identify a key game event.
+    const allPlayersWithPhotos = [
+        ...homeTeam.players.filter(p => p.photo),
+        ...awayTeam.players.filter(p => p.photo)
+    ];
 
-        **Match Context:**
-        - Home Team: ${homeTeam.name} (attacking ${homeTeamAttackDirection}, wearing ${homeTeam.color || 'dark'} jerseys)
-        - Away Team: ${awayTeam.name} (wearing ${awayTeam.color || 'light'} jerseys)
-        - Match Time: Approximately ${Math.floor(matchTime / 60)} minutes.
+    const parts: any[] = [
+        { text: `
+You are a world-class football (soccer) analyst and AI expert. Your task is to analyze a video frame from a match to identify a key game event and the specific player involved.
 
-        **Input Data:**
-        1.  **Annotated Image**: A video frame with pose skeletons drawn on players.
-        2.  **Pose Data (JSON)**: An array of detected poses. Each pose is an array of landmarks with an index, normalized (x, y) coordinates, and visibility (v).
-            - Key Landmark Indices: Shoulders (11, 12), Hips (23, 24), Knees (25, 26), Ankles (27, 28), Feet (31, 32).
-            - 'poses': ${posesJSON}
+**Match Context:**
+- Home Team: ${homeTeam.name} (attacking ${homeTeamAttackDirection}, wearing ${homeTeam.color || 'dark'} jerseys)
+- Away Team: ${awayTeam.name} (wearing ${awayTeam.color || 'light'} jerseys)
+- Match Time: Approximately ${Math.floor(matchTime / 60)} minutes.
+- Pose Data (JSON): ${posesJSON}
 
-        **Your Reasoning Process:**
-        1.  **Team Identification**: For each pose, look at the image area around the torso (landmarks 11, 12, 23, 24) to determine jersey color and assign the player to either '${homeTeam.name}' or '${awayTeam.name}'.
-        2.  **Action Recognition**: Based on the poses and player team assignments, identify one of these events: 'TACKLE', 'PASS', 'SHOT_ON_TARGET', 'SHOT_OFF_TARGET', 'OFFSIDE', 'FOUL', 'SAVE'.
-            - **Tackle/Foul**: Look for 2+ players from opposing teams in close proximity. A tackle is a clean challenge for the ball. A foul involves a reckless challenge, pushing, or tripping, often resulting in a player falling unnaturally.
-            - **Pass/Shot**: Identify a player with a kicking motion (large distance between hip [23/24] and foot [31/32]). If the body orientation (shoulders [11/12]) is towards the opponent's goal, it is a 'SHOT'. Otherwise, it is a 'PASS'. Distinguish between 'SHOT_ON_TARGET' and 'SHOT_OFF_TARGET' based on the ball's trajectory relative to the goalposts in the frame.
-            - **Offside**: This is difficult. Attempt it only if an attacker seems to be receiving a pass. Identify the attacking team. Find the defending team's second-to-last player (excluding the goalkeeper) along the vertical axis. If the receiving attacker is beyond this defender when the pass is made (inferred from a teammate's kicking pose), it is 'OFFSIDE'.
-        3.  **Event Determination**: Conclude which single, most prominent event is occurring. If no clear event is happening, use "NONE".
+First, here is the main video frame to analyze, with pose skeletons drawn on players:
+` },
+        { inlineData: { mimeType: 'image/jpeg', data: annotatedFrameBase64 } }
+    ];
 
-        **Output Format:**
-        Return a JSON object with the event type, the name of the team involved, and brief details explaining your reasoning.
+    if (allPlayersWithPhotos.length > 0) {
+        parts.push({ text: "\n\nNext, here are reference photos of the players. Use these to identify who is in the main frame." });
+        allPlayersWithPhotos.forEach(player => {
+            const base64Data = player.photo!.split(',')[1];
+            const mimeType = player.photo!.match(/:(.*?);/)![1];
+            const teamName = homeTeam.players.some(p => p.number === player.number) ? homeTeam.name : awayTeam.name;
+            
+            parts.push({ text: `\nThis is ${player.name} (#${player.number}) from ${teamName}:` });
+            parts.push({
+                inlineData: {
+                    mimeType: mimeType,
+                    data: base64Data
+                }
+            });
+        });
+    }
 
-        Example response:
-        { "event": "TACKLE", "teamName": "${awayTeam.name}", "details": "Player in ${awayTeam.color || 'light'} jersey makes a sliding tackle on a player from ${homeTeam.name}." }
-        
-        Example for no event:
-        { "event": "NONE", "teamName": null, "details": null }
-    `;
+    parts.push({ text: `
+\n\n**Your Task:**
+1.  **Player Identification**: For each pose in the main frame, compare the player's face and appearance to the reference photos provided. Identify the specific player (name and number) and their team. If a player cannot be identified from the photos or no photos are provided, determine their team by jersey color.
+2.  **Action Recognition**: Based on the identified players' poses and positions, recognize ONE of these events: 'TACKLE', 'PASS', 'SHOT_ON_TARGET', 'SHOT_OFF_TARGET', 'OFFSIDE', 'FOUL', 'SAVE'.
+3.  **Event Determination**: Conclude which single, most prominent event is occurring. If no clear event is happening, use "NONE".
+
+**Output Format:**
+Return a JSON object with the event type, team name, and the identified player's name and number. If the player cannot be identified, the player fields should be null. Provide brief details explaining your reasoning.
+
+Example for an identified player:
+{ "event": "TACKLE", "teamName": "${awayTeam.name}", "playerName": "Bolt", "playerNumber": 22, "details": "Bolt makes a sliding tackle on Leo." }
+
+Example for an unidentified player:
+{ "event": "PASS", "teamName": "${homeTeam.name}", "playerName": null, "playerNumber": null, "details": "A midfielder from ${homeTeam.name} plays a through ball."}
+
+Example for no event:
+{ "event": "NONE", "teamName": null, "playerName": null, "playerNumber": null, "details": null }
+` });
 
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response: GenerateContentResponse = await ai.models.generateContent({
             model,
-            contents: {
-                parts: [
-                    { inlineData: { mimeType: 'image/jpeg', data: annotatedFrameBase64 } },
-                    { text: prompt },
-                ]
-            },
+            contents: { parts },
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -392,9 +407,11 @@ export const advancedFrameAnalysis = async (
                     properties: {
                         event: { type: Type.STRING },
                         teamName: { type: Type.STRING, nullable: true },
-                        details: { type: Type.STRING, nullable: true, description: "Brief reasoning for the event detection, e.g., 'Player in blue tackles player in red.'" }
+                        playerName: { type: Type.STRING, nullable: true },
+                        playerNumber: { type: Type.INTEGER, nullable: true },
+                        details: { type: Type.STRING, nullable: true, description: "Brief reasoning for the event detection." }
                     },
-                    required: ["event", "teamName"]
+                    required: ["event"]
                 }
             }
         });
@@ -407,6 +424,8 @@ export const advancedFrameAnalysis = async (
                 matchTime: matchState.matchTime,
                 type: jsonResponse.event,
                 teamName: jsonResponse.teamName,
+                playerName: jsonResponse.playerName || undefined,
+                playerNumber: jsonResponse.playerNumber || undefined,
                 details: jsonResponse.details || undefined,
             };
         }
@@ -1036,3 +1055,24 @@ export const generateHalfTimeAnalysis = async (matchState: MatchState, period: '
     }
     throw new Error('generateHalfTimeAnalysis did not return a value.');
 };
+
+export const validateApiKey = async (): Promise<{ isValid: boolean; error?: string }> => {
+    try {
+      if (!process.env.API_KEY) {
+          return { isValid: false, error: "API key is not available in the environment." };
+      }
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      // Use a simple, fast model for a low-cost validation call.
+      await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: 'test'
+      });
+      return { isValid: true };
+    } catch (error: any) {
+      console.error("API Key validation failed:", error);
+      if (error.message.includes("API key not valid") || error.message.includes("Requested entity was not found") || error.message.includes("permission")) {
+          return { isValid: false, error: "The selected API key is not valid or lacks permissions. Please select a key from a Google Cloud project with billing enabled and the Gemini API active." };
+      }
+      return { isValid: false, error: "An unexpected error occurred during key validation. Check your network connection." };
+    }
+  };

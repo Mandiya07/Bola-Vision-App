@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, MouseEvent } from 'react';
 import { useMatchContext } from '../context/MatchContext';
 import { useProContext } from '../context/ProContext';
@@ -121,6 +120,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const currentTeam = selectedTeam === 'home' ? state.homeTeam : state.awayTeam;
 
   useEffect(() => {
+    // Sync selected team with penalty shootout current taker
+    if (state.matchPeriod === 'penaltyShootout' && state.penaltyShootout) {
+        if (selectedTeam !== state.penaltyShootout.currentTaker) {
+            setSelectedTeam(state.penaltyShootout.currentTaker);
+        }
+    }
+  }, [state.matchPeriod, state.penaltyShootout, selectedTeam]);
+
+  useEffect(() => {
     // Update selectedPlayer if the team's player list changes (e.g., substitution)
     if (selectedPlayer) {
       const updatedPlayer = currentTeam.players.find(p => p.number === selectedPlayer.number);
@@ -145,11 +153,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   }, [state.events]);
 
   const handleLogEvent = (type: GameEventType) => {
-    if (isButtonDisabled(type)) return;
+    if (type !== 'PENALTY_SHOOTOUT_GOAL' && type !== 'PENALTY_SHOOTOUT_MISS' && type !== 'PENALTY_SHOOTOUT_SAVE' && isButtonDisabled(type)) return;
 
     if (type === 'PENALTY_SHOOTOUT_GOAL' || type === 'PENALTY_SHOOTOUT_MISS' || type === 'PENALTY_SHOOTOUT_SAVE') {
         if (state.penaltyShootout && selectedPlayer) {
-            const teamSide = selectedTeam;
+            const teamSide = state.penaltyShootout.currentTaker;
             const outcomeMap: Record<'PENALTY_SHOOTOUT_GOAL' | 'PENALTY_SHOOTOUT_MISS' | 'PENALTY_SHOOTOUT_SAVE', PenaltyAttempt['outcome']> = {
                 'PENALTY_SHOOTOUT_GOAL': 'goal',
                 'PENALTY_SHOOTOUT_MISS': 'miss',
@@ -244,16 +252,46 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       const requiresPlayer: GameEventType[] = ['GOAL', 'ASSIST', 'SHOT_ON_TARGET', 'SHOT_OFF_TARGET', 'TACKLE', 'PASS', 'FOUL', 'YELLOW_CARD', 'RED_CARD', 'SAVE', 'INJURY'];
       const playerRequired = requiresPlayer.includes(type) && !selectedPlayer;
       const isInjuryDisabled = type === 'INJURY' && state.injuryStoppage !== null;
-      return state.matchPeriod === 'penaltyShootout' || playerRequired || isInjuryDisabled;
+      return playerRequired || isInjuryDisabled;
   };
   
+  const isStartPenaltyShootoutVisible =
+    state.matchPeriod === 'fullTime' &&
+    state.matchType === 'knockout' &&
+    state.homeStats.goals === state.awayStats.goals &&
+    !state.penaltyShootout;
+
   const renderPenaltyControls = () => (
-      <div className="flex justify-center gap-2">
-          <button onClick={() => handleLogEvent('PENALTY_SHOOTOUT_GOAL')} disabled={!selectedPlayer} className="flex-1 font-bold p-2 rounded-lg transition bg-green-600 hover:bg-green-700 disabled:bg-gray-500">GOAL</button>
-          <button onClick={() => handleLogEvent('PENALTY_SHOOTOUT_MISS')} disabled={!selectedPlayer} className="flex-1 font-bold p-2 rounded-lg transition bg-red-600 hover:bg-red-700 disabled:bg-gray-500">MISS</button>
-          <button onClick={() => handleLogEvent('PENALTY_SHOOTOUT_SAVE')} disabled={!selectedPlayer} className="flex-1 font-bold p-2 rounded-lg transition bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500">SAVE</button>
+    <div className="space-y-2">
+      <p className="text-center font-bold text-yellow-400">
+        {state.penaltyShootout?.winner
+          ? `SHOOTOUT COMPLETE`
+          : `Current Taker: ${state.penaltyShootout?.currentTaker === 'home' ? state.homeTeam.name : state.awayTeam.name}`
+        }
+      </p>
+      <PlayerSelector
+        homeTeam={state.homeTeam}
+        awayTeam={state.awayTeam}
+        selectedTeam={selectedTeam}
+        onTeamChange={() => {}} // Team change is automatic in shootout
+        selectedPlayer={selectedPlayer}
+        onPlayerChange={setSelectedPlayer}
+        disabled={!!state.penaltyShootout?.winner}
+      />
+      <div className="grid grid-cols-3 gap-2">
+        <button onClick={() => handleLogEvent('PENALTY_SHOOTOUT_GOAL')} disabled={!selectedPlayer || !!state.penaltyShootout?.winner} className="font-bold p-3 rounded-lg transition bg-green-600 hover:bg-green-700 disabled:bg-gray-500">GOAL</button>
+        <button onClick={() => handleLogEvent('PENALTY_SHOOTOUT_MISS')} disabled={!selectedPlayer || !!state.penaltyShootout?.winner} className="font-bold p-3 rounded-lg transition bg-red-600 hover:bg-red-700 disabled:bg-gray-500">MISS</button>
+        <button onClick={() => handleLogEvent('PENALTY_SHOOTOUT_SAVE')} disabled={!selectedPlayer || !!state.penaltyShootout?.winner} className="font-bold p-3 rounded-lg transition bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500">SAVE</button>
       </div>
+      {state.penaltyShootout?.winner && (
+        <p className="text-center text-lg font-bold text-green-400 animate-pulse">
+          {state.penaltyShootout.winner === 'home' ? state.homeTeam.name : state.awayTeam.name} wins the shootout!
+        </p>
+      )}
+    </div>
   );
+
+  const controlButtonClass = "relative group flex flex-col items-center justify-center gap-1 p-2 rounded-lg transition bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed";
 
   return (
     <div className="absolute bottom-0 left-0 right-0 bg-gray-900 bg-opacity-80 backdrop-blur-md text-white rounded-t-lg z-20 flex flex-col max-h-[85vh]">
@@ -282,151 +320,84 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         {isExpanded && (
           <div className="w-full max-w-4xl mx-auto px-2 pb-2 overflow-y-auto">
             <div className="pt-2 border-t border-gray-700 space-y-4 animate-fade-in-fast">
-             {shotToLogId && <ShotLogger onLogLocation={handleShotLocationLogged} />}
-             
-             {state.matchPeriod === 'penaltyShootout' ? renderPenaltyControls() : (
-                <div className="space-y-2">
-                    <PlayerSelector 
-                        homeTeam={state.homeTeam}
-                        awayTeam={state.awayTeam}
-                        selectedTeam={selectedTeam}
-                        onTeamChange={setSelectedTeam}
-                        selectedPlayer={selectedPlayer}
-                        onPlayerChange={setSelectedPlayer}
-                        disabled={false}
-                    />
-                    <EventButtons onLogEvent={handleLogEvent} disabled={!selectedPlayer} canLogInjury={state.injuryStoppage === null}/>
-                </div>
-            )}
-            
-            <div className="grid grid-cols-4 lg:grid-cols-7 gap-2">
-                <div className="relative group">
-                    <button onClick={toggleStats} className="w-full font-bold p-2 rounded-lg transition bg-gray-700 hover:bg-gray-600 text-sm flex items-center justify-center gap-2"><StatsIcon className="w-5 h-5"/>Stats</button>
-                    <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Show match statistics.</span>
-                </div>
-                <div className="relative group">
-                    <button onClick={togglePlayerStats} className="w-full font-bold p-2 rounded-lg transition bg-gray-700 hover:bg-gray-600 text-sm flex items-center justify-center gap-2"><PlayerStatsIcon className="w-5 h-5"/>Players</button>
-                    <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>View all player stats.</span>
-                </div>
-                <div className="relative group">
-                    <button onClick={toggleSubModal} className="w-full font-bold p-2 rounded-lg transition bg-gray-700 hover:bg-gray-600 text-sm flex items-center justify-center gap-2"><SubstitutionIcon className="w-5 h-5"/>Sub</button>
-                    <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Make a substitution.</span>
-                </div>
-                <div className="relative group">
-                    <button onClick={() => dispatch({ type: 'OPEN_SHARE_MODAL' })} className="w-full font-bold p-2 rounded-lg transition bg-gray-700 hover:bg-gray-600 text-sm flex items-center justify-center gap-2"><ShareIcon className="w-5 h-5"/>Share</button>
-                    <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Get shareable match link.</span>
-                </div>
-                <div className="relative group">
-                    <button onClick={() => handleProFeatureClick(toggleTacticsBoard)} className="w-full font-bold p-2 rounded-lg transition bg-gray-700 hover:bg-gray-600 text-sm flex items-center justify-center gap-2"><TacticsIcon className="w-5 h-5"/>Board {!isPro && '🏆'}</button>
-                    <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Open tactical drawing board. (Pro)</span>
-                </div>
-                <div className="relative group">
-                    <button onClick={toggleFormationDisplay} className="w-full font-bold p-2 rounded-lg transition bg-gray-700 hover:bg-gray-600 text-sm flex items-center justify-center gap-2"><FormationIcon className="w-5 h-5"/>Lineups</button>
-                    <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Show starting formations.</span>
-                </div>
-                <div className="relative group">
-                    <button onClick={toggleInstructions} className="w-full font-bold p-2 rounded-lg transition bg-gray-700 hover:bg-gray-600 text-sm flex items-center justify-center gap-2"><InfoIcon className="w-5 h-5"/>Help</button>
-                    <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>View camera setup guide.</span>
-                </div>
-            </div>
-            
-            <div className="p-2 bg-gray-800/50 rounded-lg space-y-3">
-                 <h3 className="text-center font-bold text-sm text-gray-300">Broadcast Tools { !isPro && '🏆'}</h3>
-                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                     <div className="relative group">
-                        <button onClick={() => handleProFeatureClick(handleSpotlight)} disabled={!selectedPlayer || isSpotlightLoading} className="w-full font-bold p-2 rounded-lg transition bg-indigo-600 hover:bg-indigo-700 text-sm flex items-center justify-center gap-2 disabled:bg-gray-500">
-                           {isSpotlightLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <SpotlightIcon className="w-5 h-5" />}
-                           Spotlight
-                        </button>
-                        <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Show AI Player Spotlight for selected player. (Pro)</span>
-                     </div>
-                      <div className="relative group">
-                        <button onClick={() => handleProFeatureClick(toggleLiveTactics)} className={`w-full font-bold p-2 rounded-lg transition text-sm flex items-center justify-center gap-2 ${isLiveTacticsOn ? 'bg-cyan-500' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
-                           <LiveTacticsIcon className="w-5 h-5"/>
-                           {isLiveTacticsOn ? 'Tactics ON' : 'Live AI'}
-                        </button>
-                        <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Toggle automatic AI tactical suggestions. (Pro)</span>
-                     </div>
-                      <div className="relative group">
-                        <button onClick={() => handleProFeatureClick(onManualTacticsFetch)} disabled={isFetchingSuggestion} className="w-full font-bold p-2 rounded-lg transition bg-indigo-600 hover:bg-indigo-700 text-sm flex items-center justify-center gap-2 disabled:bg-gray-500">
-                           {isFetchingSuggestion ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <BrainIcon className="w-5 h-5" />}
-                           Analyze
-                        </button>
-                         <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Get an instant AI tactical suggestion. (Pro)</span>
-                     </div>
-                     <div className="relative group">
-                        <button onClick={() => { if (lastContentiousEvent) onTriggerVarCheck(lastContentiousEvent); }} disabled={!lastContentiousEvent || !isOnline} className="w-full font-bold p-2 rounded-lg transition bg-indigo-600 hover:bg-indigo-700 text-sm flex items-center justify-center gap-2 disabled:bg-gray-500">
-                           <VarIcon className="w-5 h-5"/>
-                           VAR Check
-                        </button>
-                        <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Trigger AI VAR on the last contentious event. (Pro)</span>
-                     </div>
-                 </div>
-                 <div className="flex gap-2 items-end">
-                    <div className="flex-grow space-y-1">
-                        <input type="text" value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} placeholder="Poll Question (e.g., MOTM?)" className="w-full bg-gray-900 text-white rounded p-1 border border-gray-600 text-xs" disabled={!isPro} />
-                        <div className="flex gap-1">
-                            {pollOptions.map((opt, i) => (
-                                <input key={i} type="text" value={opt} onChange={e => setPollOptions(opts => opts.map((o, idx) => i === idx ? e.target.value : o))} placeholder={`Option ${i+1}`} className="w-full bg-gray-900 text-white rounded p-1 border border-gray-600 text-xs" disabled={!isPro} />
-                            ))}
-                        </div>
+                {shotToLogId && <ShotLogger onLogLocation={handleShotLocationLogged} />}
+                
+                {isStartPenaltyShootoutVisible && (
+                  <div className="text-center my-4 animate-pulse">
+                    <button
+                      onClick={() => dispatch({ type: 'START_PENALTY_SHOOTOUT' })}
+                      className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105"
+                    >
+                      Start Penalty Shootout
+                    </button>
+                  </div>
+                )}
+                
+                {state.matchPeriod === 'penaltyShootout' ? renderPenaltyControls() : (
+                    <div className="space-y-2">
+                        <PlayerSelector 
+                            homeTeam={state.homeTeam}
+                            awayTeam={state.awayTeam}
+                            selectedTeam={selectedTeam}
+                            onTeamChange={setSelectedTeam}
+                            selectedPlayer={selectedPlayer}
+                            onPlayerChange={setSelectedPlayer}
+                            disabled={!state.isMatchPlaying}
+                        />
+                        <EventButtons onLogEvent={handleLogEvent} disabled={isButtonDisabled('GOAL')} canLogInjury={state.injuryStoppage === null} />
                     </div>
-                    <button onClick={handleCreatePoll} className="font-bold p-2 rounded-lg transition bg-indigo-600 hover:bg-indigo-700 text-sm flex items-center justify-center gap-1 h-full" disabled={!isPro}><PollIcon className="w-5 h-5"/>Start Poll</button>
-                 </div>
-            </div>
-            
-            <div className="p-2 bg-gray-800/50 rounded-lg">
-                <h3 className="text-center font-bold text-sm text-gray-300 mb-2">Match Controls</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    <div className="flex items-center gap-1">
-                        <input type="number" value={injuryTimeInput} onChange={e => setInjuryTimeInput(e.target.value)} className="w-full bg-gray-900 text-white rounded p-1 border border-gray-600 text-center" />
-                        <button onClick={handleAddInjuryTime} className="font-bold p-1 rounded-lg transition bg-gray-700 hover:bg-gray-600 text-xs h-full">Add Injury Time</button>
-                    </div>
-                    <div className="relative group">
-                        <button onClick={() => dispatch({ type: 'TOGGLE_ATTACK_DIRECTION'})} className="w-full font-bold p-2 rounded-lg transition bg-gray-700 hover:bg-gray-600 text-sm flex items-center justify-center gap-2">
-                            <ArrowLeftIcon className="w-5 h-5"/> Swap Sides <ArrowRightIcon className="w-5 h-5"/>
+                )}
+                
+                {/* General Controls */}
+                <div className="grid grid-cols-4 md:grid-cols-8 gap-2 text-center text-xs">
+                    <button onClick={toggleReplay} className={controlButtonClass}><ReplayIcon className="w-5 h-5"/><span>Replay</span><span className={`${tooltipClass} -translate-x-1/2 left-1/2`}>Trigger Instant Replay (R)</span></button>
+                    <button onClick={toggleRecording} className={`${controlButtonClass} ${isRecording ? 'bg-red-600' : ''}`}><RecordIcon className="w-5 h-5"/><span>{isRecording ? 'Stop Rec' : 'Record'}</span><span className={`${tooltipClass} -translate-x-1/2 left-1/2`}>{isRecording ? 'Stop full match recording' : 'Start full match recording'}</span></button>
+                    <button onClick={toggleStats} className={controlButtonClass}><StatsIcon className="w-5 h-5"/><span>Stats</span><span className={`${tooltipClass} -translate-x-1/2 left-1/2`}>Show Match Statistics</span></button>
+                    <button onClick={togglePlayerStats} className={controlButtonClass}><PlayerStatsIcon className="w-5 h-5"/><span>Players</span><span className={`${tooltipClass} -translate-x-1/2 left-1/2`}>Show Player Statistics</span></button>
+                    <button onClick={toggleSubModal} className={controlButtonClass}><SubstitutionIcon className="w-5 h-5"/><span>Sub</span><span className={`${tooltipClass} -translate-x-1/2 left-1/2`}>Make a Substitution</span></button>
+                    <button onClick={toggleTacticsBoard} className={controlButtonClass}><TacticsIcon className="w-5 h-5"/><span>Tactics</span><span className={`${tooltipClass} -translate-x-1/2 left-1/2`}>Open Tactical Board (T)</span></button>
+                    <button onClick={toggleFormationDisplay} className={controlButtonClass}><FormationIcon className="w-5 h-5"/><span>Lineups</span><span className={`${tooltipClass} -translate-x-1/2 left-1/2`}>Show Starting Formations</span></button>
+                    <button onClick={handleManualSave} className={controlButtonClass}><SaveIcon className="w-5 h-5"/><span>Save</span><span className={`${tooltipClass} -translate-x-1/2 left-1/2`}>Manually save match progress</span></button>
+                </div>
+                
+                {/* AI & Pro Tools */}
+                <div className="bg-gray-800/50 p-2 rounded-lg space-y-3">
+                    <h4 className="text-center font-bold text-sm text-yellow-400">AI & Pro Tools {!isPro && '🏆'}</h4>
+                    <div className="grid grid-cols-4 md:grid-cols-5 gap-2 text-xs">
+                        <button onClick={() => handleProFeatureClick(toggleAdvancedAnalysis)} disabled={isPoseLandmarkerLoading} className={`${controlButtonClass} ${isAdvancedAnalysisEnabled ? 'bg-blue-600' : ''}`}>
+                            {isPoseLandmarkerLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <BrainIcon className="w-5 h-5"/>}
+                            <span>Adv. AI</span>
+                            <span className={`${tooltipClass} -translate-x-1/2 left-1/2`}>Toggle Advanced AI Frame Analysis (for event detection, heatmaps, auto-cam)</span>
                         </button>
-                        <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Swap team attack directions (e.g., for 2nd half).</span>
-                    </div>
-                     <div className="relative group">
-                        <button onClick={() => dispatch({ type: 'TOGGLE_LIVE_COMMENTARY' })} disabled={!isOnline} className={`w-full font-bold p-2 rounded-lg transition text-sm flex items-center justify-center gap-2 disabled:bg-gray-500 ${state.isLiveCommentaryActive ? 'bg-red-500' : 'bg-gray-700 hover:bg-gray-600'}`}>
-                           <MicrophoneIcon className="w-5 h-5"/>
-                           {state.isLiveCommentaryActive ? 'Live OFF' : 'Live ON'}
+                        <button onClick={() => handleProFeatureClick(toggleLiveTactics)} disabled={!isOnline} className={`${controlButtonClass} ${isLiveTacticsOn ? 'bg-blue-600' : ''}`}>
+                            <LiveTacticsIcon className={`w-5 h-5 ${isLiveTacticsOn ? 'text-yellow-300' : ''}`}/>
+                            <span>Live Tac</span>
+                            <span className={`${tooltipClass} -translate-x-1/2 left-1/2`}>Toggle automatic live tactical suggestions</span>
                         </button>
-                        <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Toggle real-time live AI commentary. (Pro)</span>
-                     </div>
-                     <div className="relative group">
-                        <button onClick={handleManualSave} className="w-full font-bold p-2 rounded-lg transition bg-gray-700 hover:bg-gray-600 text-sm flex items-center justify-center gap-2"><SaveIcon className="w-5 h-5"/>Save</button>
-                         <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Manually save match progress.</span>
+                        <button onClick={() => { if(lastContentiousEvent) handleProFeatureClick(() => onTriggerVarCheck(lastContentiousEvent)) }} disabled={!lastContentiousEvent || !isOnline} className={controlButtonClass}>
+                            <VarIcon className="w-5 h-5"/>
+                            <span>VAR</span>
+                            <span className={`${tooltipClass} -translate-x-1/2 left-1/2`}>Trigger AI Referee review on last contentious event</span>
+                        </button>
+                        <button onClick={handleSpotlight} disabled={!selectedPlayer || !isOnline || isSpotlightLoading} className={controlButtonClass}>
+                            {isSpotlightLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <SpotlightIcon className="w-5 h-5"/>}
+                            <span>Spotlight</span>
+                            <span className={`${tooltipClass} -translate-x-1/2 left-1/2`}>Generate an AI spotlight graphic for the selected player</span>
+                        </button>
+                        <button onClick={() => handleProFeatureClick(() => dispatch({ type: 'TOGGLE_LIVE_COMMENTARY' }))} disabled={!isOnline} className={`${controlButtonClass} ${state.isLiveCommentaryActive ? 'bg-blue-600' : ''}`}>
+                          <MicrophoneIcon className="w-5 h-5" />
+                          <span>Live AI</span>
+                          <span className={`${tooltipClass} -translate-x-1/2 left-1/2`}>Toggle real-time conversational AI commentary</span>
+                        </button>
                     </div>
                 </div>
-            </div>
 
-            <div className="p-2 bg-gray-800/50 rounded-lg">
-                 <h3 className="text-center font-bold text-sm text-gray-300 mb-2">Camera & Recording</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                     <div className="relative group">
-                        <button onClick={() => dispatch({ type: 'TOGGLE_AUTO_CAMERA'})} className={`w-full font-bold p-2 rounded-lg transition text-sm flex items-center justify-center gap-2 ${state.isAutoCameraOn ? 'bg-cyan-500' : 'bg-gray-700 hover:bg-gray-600'}`} disabled={!isPro || !isAdvancedAnalysisEnabled}>
-                           <BrainIcon className="w-5 h-5"/> Auto-Cam
-                        </button>
-                        <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Let AI automatically switch camera views. Requires Advanced Analysis. (Pro)</span>
-                     </div>
-                     <div className="relative group">
-                        <button onClick={() => handleProFeatureClick(toggleAdvancedAnalysis)} className={`w-full font-bold p-2 rounded-lg transition text-sm flex items-center justify-center gap-2 ${isAdvancedAnalysisEnabled ? 'bg-cyan-500' : 'bg-gray-700 hover:bg-gray-600'}`} disabled={isPoseLandmarkerLoading}>
-                           {isPoseLandmarkerLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <BrainIcon className="w-5 h-5" />}
-                           Advanced
-                        </button>
-                        <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>Enable advanced pose-detection analysis for heatmap data and better event detection. (Pro)</span>
-                     </div>
-                     <div className="relative group">
-                        <button onClick={toggleRecording} className={`w-full font-bold p-2 rounded-lg transition text-sm flex items-center justify-center gap-2 ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}>
-                            <RecordIcon className="w-5 h-5"/> {isRecording ? 'Stop Rec' : 'Record'}
-                        </button>
-                        <span className={`${tooltipClass} left-1/2 -translate-x-1/2`}>{isRecording ? 'Stop recording the full match.' : 'Start recording the full match to local storage.'}</span>
-                     </div>
+                {/* Match Admin */}
+                <div className="flex items-center justify-center gap-4 text-sm">
+                    <label className="font-semibold">Injury Time:</label>
+                    <input type="number" value={injuryTimeInput} onChange={e => setInjuryTimeInput(e.target.value)} min="0" className="w-16 bg-gray-700 text-white rounded p-1 border border-gray-600 text-center" />
+                    <button onClick={handleAddInjuryTime} className="bg-orange-600 hover:bg-orange-700 font-bold py-1 px-3 rounded-md">Add</button>
                 </div>
-            </div>
-            
             </div>
           </div>
         )}

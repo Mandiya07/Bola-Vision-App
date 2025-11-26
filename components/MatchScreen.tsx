@@ -286,15 +286,38 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
         const newTime = state.matchTime + 1;
         dispatch({ type: 'SET_TIME', payload: newTime });
 
-        const firstHalfEnd = (45 * 60) + (state.injuryTime * 60);
-        const secondHalfEnd = (90 * 60) + (state.injuryTime * 60);
+        // Calculate end times for each period, including injury time
+        const injuryTimeInSeconds = state.injuryTime * 60;
+        const firstHalfEnd = (45 * 60) + injuryTimeInSeconds;
+        const secondHalfEnd = (90 * 60) + injuryTimeInSeconds;
+        const extraTimeFirstHalfEnd = (105 * 60) + injuryTimeInSeconds;
+        const extraTimeSecondHalfEnd = (120 * 60) + injuryTimeInSeconds;
 
-        if (state.matchPeriod === 'firstHalf' && newTime >= firstHalfEnd) {
-            dispatch({ type: 'SET_MATCH_PERIOD', payload: 'halfTime' });
-        } else if (state.matchPeriod === 'secondHalf' && newTime >= secondHalfEnd) {
-            dispatch({ type: 'SET_MATCH_PERIOD', payload: 'fullTime' });
+        switch (state.matchPeriod) {
+            case 'firstHalf':
+                if (newTime >= firstHalfEnd) {
+                    dispatch({ type: 'SET_MATCH_PERIOD', payload: 'halfTime' });
+                }
+                break;
+            case 'secondHalf':
+                if (newTime >= secondHalfEnd) {
+                    dispatch({ type: 'SET_MATCH_PERIOD', payload: 'fullTime' });
+                }
+                break;
+            case 'extraTimeFirstHalf':
+                if (newTime >= extraTimeFirstHalfEnd) {
+                    dispatch({ type: 'SET_MATCH_PERIOD', payload: 'extraTimeHalfTime' });
+                }
+                break;
+            case 'extraTimeSecondHalf':
+                if (newTime >= extraTimeSecondHalfEnd) {
+                    dispatch({ type: 'SET_MATCH_PERIOD', payload: 'fullTime' });
+                }
+                break;
+            default:
+                // No timer logic for other periods like halfTime, penaltyShootout, etc.
+                break;
         }
-
       }, 1000);
     }
     return () => {
@@ -676,7 +699,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
   const toggleFormationDisplay = () => setShowFormationDisplay(prev => !prev);
 
 
-  const handleTriggerReplay = async () => {
+  const handleTriggerReplay = useCallback(async () => {
     if (replayState.isReplaying) return; // Don't trigger a replay if one is already playing
 
     const replayBlob = await recorderService.getReplayBlob();
@@ -690,7 +713,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
     if (state.adBanner) {
         setIsAdShowing(true);
     }
-  };
+  }, [replayState.isReplaying, state.adBanner]);
 
   const handleReplayEnd = () => {
     if (replayState.url) {
@@ -743,7 +766,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
   const toggleStats = () => setShowStats(!showStats);
   const togglePlayerStats = () => setShowPlayerStats(!showPlayerStats);
 
-  const toggleTacticsBoard = () => {
+  const toggleTacticsBoard = useCallback(() => {
     setIsTacticsBoardVisible(prev => {
         const willBeVisible = !prev;
         if (willBeVisible) {
@@ -758,7 +781,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
         }
         return willBeVisible;
     });
-  };
+  }, [state.isMatchPlaying, dispatch, videoRef]);
 
   const handleToggleCamera = useCallback(() => {
     if (videoDevices.length > 1) {
@@ -769,6 +792,50 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
         dispatch({ type: 'SET_CAMERA', payload: nextDevice.label });
     }
   }, [currentDeviceIndex, videoDevices, setupCamera, dispatch]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore shortcuts if user is typing in an input/textarea
+      const target = e.target as HTMLElement;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) {
+        return;
+      }
+
+      // Only activate shortcuts when camera is active and modals are not open
+      if (cameraState !== 'active' || isTacticsBoardVisible || showEndMatchConfirm || showSubModal || showInstructions) {
+          return;
+      }
+      
+      // Prevent shortcuts from firing when certain overlays are visible
+      if(state.varCheck?.isActive || state.injuryStoppage || state.matchPeriod === 'halfTime' || state.matchPeriod === 'fullTime') {
+        return;
+      }
+
+      switch (e.key.toLowerCase()) {
+        case ' ':
+          e.preventDefault(); // Prevent page scroll
+          dispatch({ type: 'TOGGLE_PLAY' });
+          break;
+        case 'e':
+          setShowEndMatchConfirm(true);
+          break;
+        case 'r':
+          handleTriggerReplay();
+          break;
+        case 't':
+          toggleTacticsBoard();
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [cameraState, dispatch, handleTriggerReplay, toggleTacticsBoard, isTacticsBoardVisible, showEndMatchConfirm, showSubModal, showInstructions, state.varCheck, state.injuryStoppage, state.matchPeriod]);
   
   const renderCameraOverlay = () => {
     if (permissionStatus === 'checking') {
@@ -904,7 +971,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
               onClick={() => setShowEndMatchConfirm(true)}
               className="bg-gray-800/80 hover:bg-red-700 p-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 group"
               aria-label="End Match"
-              title="End Match"
+              title="End Match (E)"
             >
               <EndMatchIcon className="w-6 h-6 text-gray-300 group-hover:text-white transition-colors" />
             </button>
