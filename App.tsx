@@ -10,7 +10,6 @@ import FanViewScreen from './components/FanViewScreen';
 import UpgradeModal from './components/UpgradeModal';
 import SocialMediaModal from './components/SocialMediaModal';
 import ShareModal from './components/ShareModal';
-import SelectKeyScreen from './components/SelectKeyScreen';
 import { MatchContextProvider, useMatchContext } from './context/MatchContext';
 import { ProContextProvider, useProContext } from './context/ProContext';
 import type { Player, Team, MatchState, Monetization, CommentaryStyle, CommentaryLanguage, BroadcastStyle, Official, WeatherCondition } from './types';
@@ -281,47 +280,6 @@ const App: React.FC = () => {
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
-  const [hasSelectedKey, setHasSelectedKey] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
-
-  useEffect(() => {
-    const keyCheckPromise = (async () => {
-      try {
-        // @ts-ignore - aistudio is a global provided by the dev environment
-        if (window.aistudio) {
-          // In the dev environment, check if a key has been selected via the dialog
-          if (await window.aistudio.hasSelectedApiKey()) {
-            setHasSelectedKey(true);
-          }
-        } else {
-          // In production/deployed environments, window.aistudio doesn't exist.
-          // Assume the API_KEY is set in the environment and bypass the selection screen.
-          setHasSelectedKey(true);
-        }
-      } catch (error) {
-        console.error("Error during API key check:", error);
-        // Fallback to false, which will show the selection screen if it's available.
-      }
-    })();
-  
-    // Use a timeout to prevent the app getting stuck if the key check hangs.
-    const timeoutPromise = new Promise(resolve => setTimeout(resolve, 4000));
-  
-    Promise.race([keyCheckPromise, timeoutPromise]).finally(() => {
-      setIsInitializing(false);
-    });
-  }, []);
-
-  useEffect(() => {
-    const handleInvalidKey = () => {
-        console.log("Invalid API key event received. Resetting key selection.");
-        setHasSelectedKey(false);
-    };
-    window.addEventListener('invalid-api-key', handleInvalidKey);
-    return () => {
-        window.removeEventListener('invalid-api-key', handleInvalidKey);
-    };
-  }, []);
 
   const handleLogin = () => {
     setIsAuthenticated(true);
@@ -340,23 +298,6 @@ const App: React.FC = () => {
     setIsGuest(false);
     setIsPro(false);
   };
-
-  const handleKeySelected = () => {
-    setHasSelectedKey(true);
-  };
-
-  if (isInitializing) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="ml-4 text-xl">Initializing...</p>
-      </div>
-    );
-  }
-
-  if (!hasSelectedKey) {
-    return <SelectKeyScreen onKeySelected={handleKeySelected} />;
-  }
   
   if (!isAuthenticated) {
     return <AuthScreen onLogin={handleLogin} onGuest={handleGuest} />;
