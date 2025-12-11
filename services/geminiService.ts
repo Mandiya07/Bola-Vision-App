@@ -78,7 +78,7 @@ export const generateCommentary = async (event: GameEvent, matchState: MatchStat
         return { text: getEventDescription(event), excitement }; 
     }
 
-    const model = 'gemini-2.5-pro';
+    const model = 'gemini-2.5-flash';
     const { commentaryStyle, commentaryLanguage, homeTeam, awayTeam, homeStats, awayStats, matchTime, officials, leagueName, matchDate, matchTimeOfDay, venue, weather } = matchState;
     const eventDescription = getEventDescription(event);
     const referee = officials.find(o => o.role === 'Referee');
@@ -252,7 +252,7 @@ export const analyzeVideoFrame = async (base64Frame: string, matchState: MatchSt
 
 export const analyzeRefereeDecision = async (base64Frame: string, event: GameEvent, matchState: MatchState): Promise<{ recommendation: NonNullable<MatchState['varCheck']>['recommendation'], reasoning: string }> => {
     if (!navigator.onLine) throw new Error("VAR check unavailable offline.");
-    const model = 'gemini-2.5-pro';
+    const model = 'gemini-2.5-flash';
     
     const { homeTeam, awayTeam, homeStats, awayStats } = matchState;
     const eventType = event.type;
@@ -320,7 +320,7 @@ export const advancedFrameAnalysis = async (
   videoTimestamp: number
 ): Promise<GameEvent | null> => {
     if (!navigator.onLine) return null;
-    const model = 'gemini-2.5-pro';
+    const model = 'gemini-2.5-flash';
 
     const poseResult = poseLandmarker.detectForVideo(canvas, videoTimestamp);
     const drawingUtils = new DrawingUtils(canvas.getContext('2d')!);
@@ -440,7 +440,7 @@ Example for no event:
 
 export const getTacticalSuggestion = async (base64Frame: string, matchState: MatchState): Promise<TacticalSuggestion> => {
     if (!navigator.onLine) throw new Error("Offline: Cannot get AI suggestion.");
-    const model = 'gemini-2.5-pro';
+    const model = 'gemini-2.5-flash';
 
     const { homeTeam, awayTeam, homeStats, awayStats, matchTime, homeTeamAttackDirection } = matchState;
 
@@ -737,7 +737,7 @@ export const generatePlayerSpotlightText = async (player: Player, team: Team): P
 
 export const generateMatchSummary = async (matchState: MatchState): Promise<string> => {
     if (!navigator.onLine) throw new Error("Feature unavailable offline.");
-    const model = 'gemini-2.5-pro';
+    const model = 'gemini-2.5-flash';
     const { homeTeam, awayTeam, homeStats, awayStats, events, officials, leagueName, matchDate, venue, weather } = matchState;
     const referee = officials.find(o => o.role === 'Referee');
     
@@ -783,7 +783,7 @@ export const generateMatchSummary = async (matchState: MatchState): Promise<stri
 
 export const selectPlayerOfTheMatch = async (matchState: MatchState): Promise<{ player: Player, team: 'home' | 'away', reasoning: string }> => {
     if (!navigator.onLine) throw new Error("Feature unavailable offline.");
-    const model = 'gemini-2.5-pro';
+    const model = 'gemini-2.5-flash';
     const { homeTeam, awayTeam, homeStats, awayStats, events, leagueName, venue } = matchState;
 
     const allPlayersWithStats = [
@@ -1016,7 +1016,7 @@ export const generateHighlightReelSequence = async (highlights: Highlight[], mat
 
 export const generateHalfTimeAnalysis = async (matchState: MatchState, period: 'First Half' | 'Full Match'): Promise<string> => {
     if (!navigator.onLine) throw new Error("Feature unavailable offline.");
-    const model = 'gemini-2.5-pro';
+    const model = 'gemini-2.5-flash';
     const { homeTeam, awayTeam, homeStats, awayStats, events } = matchState;
 
     const significantEvents = events

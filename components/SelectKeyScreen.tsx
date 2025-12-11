@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { validateApiKey } from '../services/geminiService';
 
 interface SelectKeyScreenProps {
@@ -8,6 +8,15 @@ interface SelectKeyScreenProps {
 const SelectKeyScreen: React.FC<SelectKeyScreenProps> = ({ onKeySelected }) => {
   const [isValidating, setIsValidating] = useState(false);
   const [validationError, setValidationError] = useState('');
+  const [isDevEnvironment, setIsDevEnvironment] = useState(false);
+
+  useEffect(() => {
+    // @ts-ignore
+    if (window.aistudio) {
+      setIsDevEnvironment(true);
+    }
+  }, []);
+
 
   const handleSelectKey = async () => {
     setValidationError('');
@@ -28,6 +37,31 @@ const SelectKeyScreen: React.FC<SelectKeyScreenProps> = ({ onKeySelected }) => {
         setIsValidating(false);
     }
   };
+
+  if (!isDevEnvironment) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 animate-fade-in">
+        <div className="w-full max-w-lg text-center">
+          <div className="text-center mb-8">
+            <h1 className="text-5xl font-bold" style={{ color: '#00e676' }}>BolaVision</h1>
+            <p className="text-gray-400 italic mt-2">“Your Game, Our Vision.”</p>
+          </div>
+          <div className="bg-gray-800 rounded-lg shadow-xl p-8 border border-red-500">
+            <h1 className="text-2xl font-bold text-center text-red-400 mb-4">
+              Configuration Error
+            </h1>
+            <p className="text-gray-300 mb-6">
+              The Gemini API key is not configured correctly on the server.
+            </p>
+            <div className="bg-gray-900/50 p-4 rounded-md text-left text-sm text-gray-400">
+              <p className="font-semibold text-white">For Administrators:</p>
+              <p className="mt-2">To resolve this, please set the <code className="bg-gray-700 p-1 rounded font-mono text-cyan-300">API_KEY</code> environment variable in your deployment settings with a valid Gemini API key.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 animate-fade-in">

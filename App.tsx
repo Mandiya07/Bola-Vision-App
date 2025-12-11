@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import SetupScreen from './components/SetupScreen';
 import MatchScreen from './components/MatchScreen';
@@ -284,25 +285,28 @@ const App: React.FC = () => {
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    // This promise attempts to check for a pre-selected API key.
     const keyCheckPromise = (async () => {
       try {
-        // @ts-ignore
-        if (window.aistudio && (await window.aistudio.hasSelectedApiKey())) {
+        // @ts-ignore - aistudio is a global provided by the dev environment
+        if (window.aistudio) {
+          // In the dev environment, check if a key has been selected via the dialog
+          if (await window.aistudio.hasSelectedApiKey()) {
+            setHasSelectedKey(true);
+          }
+        } else {
+          // In production/deployed environments, window.aistudio doesn't exist.
+          // Assume the API_KEY is set in the environment and bypass the selection screen.
           setHasSelectedKey(true);
         }
       } catch (error) {
-        console.error("Error checking for API key:", error);
-        // hasSelectedKey remains false, which is the correct fallback.
+        console.error("Error during API key check:", error);
+        // Fallback to false, which will show the selection screen if it's available.
       }
     })();
-
-    // This promise acts as a timeout.
-    const timeoutPromise = new Promise(resolve => setTimeout(resolve, 4000)); // 4-second timeout
-
-    // We race the key check against the timeout.
-    // Whichever finishes first, we proceed by hiding the initializing screen.
-    // This prevents the app from getting stuck if the key check hangs.
+  
+    // Use a timeout to prevent the app getting stuck if the key check hangs.
+    const timeoutPromise = new Promise(resolve => setTimeout(resolve, 4000));
+  
     Promise.race([keyCheckPromise, timeoutPromise]).finally(() => {
       setIsInitializing(false);
     });

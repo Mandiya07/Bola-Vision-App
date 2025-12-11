@@ -47,7 +47,7 @@ export const useCamera = () => {
             }
 
             const constraints: MediaStreamConstraints = {
-                video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' }
+                video: deviceId ? { deviceId: { exact: deviceId } } : true
             };
 
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -65,7 +65,7 @@ export const useCamera = () => {
         } catch (err) {
             console.error("Error accessing camera:", err);
             if (err instanceof DOMException && err.name === "NotAllowedError") {
-                setCameraError("Permission to use the camera was denied. Please go to your browser's settings for this site and allow camera access, then try again.");
+                setCameraError("Permission to use the camera was denied. Please go to your browser's site settings for this site and allow camera access, then try again.");
             } else {
                 setCameraError("Could not access camera. Please ensure permissions are granted and the device is not in use by another application.");
             }
