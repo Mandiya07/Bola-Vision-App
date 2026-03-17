@@ -7,9 +7,86 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#00e676" />
     <title>BolaVision</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              display: ['Orbitron', 'sans-serif'],
+              body: ['Rajdhani', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            colors: {
+              neon: {
+                cyan: '#00f3ff',
+                magenta: '#ff00ff',
+                emerald: '#00ff9f',
+                yellow: '#f3ff00',
+              }
+            }
+          }
+        }
+      }
+    </script>
     <style>
+      :root {
+        --glass-bg: rgba(15, 23, 42, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --neon-cyan: #00f3ff;
+      }
+      body {
+        font-family: 'Rajdhani', sans-serif;
+        background-color: #020617;
+      }
+      .font-display { font-family: 'Orbitron', sans-serif; }
+      .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+      .glass-panel {
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      }
+
+      .neon-border-cyan {
+        border: 1px solid var(--neon-cyan);
+        box-shadow: 0 0 10px rgba(0, 243, 255, 0.3), inset 0 0 5px rgba(0, 243, 255, 0.2);
+      }
+
+      .neon-text-cyan {
+        color: var(--neon-cyan);
+        text-shadow: 0 0 8px rgba(0, 243, 255, 0.5);
+      }
+
       /* Custom animations for the app */
+      @keyframes scanline {
+        0% { transform: translateY(-100%); }
+        100% { transform: translateY(100%); }
+      }
+      .scanline {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: rgba(0, 243, 255, 0.1);
+        animation: scanline 8s linear infinite;
+        pointer-events: none;
+        z-index: 50;
+      }
+
+      @keyframes pulse-glow {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 1; }
+      }
+      .pulse-glow {
+        animation: pulse-glow 2s ease-in-out infinite;
+      }
+
       @keyframes shrink {
         from { width: 100%; }
         to { width: 0%; }
@@ -23,8 +100,9 @@
           to { opacity: 1; transform: translateY(0); }
       }
       @keyframes goal-text-animation {
-        0% { transform: scale(0.5) rotate(-10deg); opacity: 0; }
-        50% { transform: scale(1.2) rotate(5deg); opacity: 1; }
+        0% { transform: scale(0.3) rotate(-15deg); opacity: 0; }
+        60% { transform: scale(1.1) rotate(5deg); opacity: 1; }
+        80% { transform: scale(0.95) rotate(-2deg); opacity: 1; }
         100% { transform: scale(1) rotate(0deg); opacity: 1; }
       }
       @keyframes fade-out {
@@ -46,7 +124,7 @@
       .pitch-background {
         background:
             linear-gradient(to right, transparent 49.8%, #ffffff33 49.8%, #ffffff33 50.2%, transparent 50.2%),
-            radial-gradient(ellipse at center, #2e7d32, #1b5e20);
+            radial-gradient(ellipse at center, #0f172a, #020617);
       }
     </style>
 <script type="importmap">

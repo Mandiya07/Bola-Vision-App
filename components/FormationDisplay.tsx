@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import type { Team } from '../types';
+import type { Team, Player } from '../types';
 
 interface FormationDisplayProps {
     homeTeam: Team;
@@ -17,7 +17,7 @@ const FormationDisplay: React.FC<FormationDisplayProps> = ({ homeTeam, awayTeam,
         return () => clearTimeout(timer);
     }, [onClose]);
 
-    const PlayerMarker: React.FC<{ player: any, color: string }> = ({ player, color }) => (
+    const PlayerMarker: React.FC<{ player: Player & { x?: number, y?: number }, color: string }> = ({ player, color }) => (
         <div 
             className="absolute flex flex-col items-center group"
             style={{ top: `${player.y}%`, left: `${player.x}%`, transform: 'translate(-50%, -50%)' }}

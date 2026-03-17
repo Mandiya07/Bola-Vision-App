@@ -17,14 +17,17 @@ const LiveTacticsOverlay: React.FC<LiveTacticsOverlayProps> = ({ suggestion, onF
 
     useEffect(() => {
         if (suggestion) {
-            setIsVisible(true);
+            const showTimer = setTimeout(() => setIsVisible(true), 0);
             const fadeTimer = setTimeout(() => {
                 setIsVisible(false);
                 // Allow time for fade out animation before clearing
                 setTimeout(onFadeOut, 500); 
             }, 6000); // Display for 6 seconds
 
-            return () => clearTimeout(fadeTimer);
+            return () => {
+                clearTimeout(showTimer);
+                clearTimeout(fadeTimer);
+            };
         }
     }, [suggestion, onFadeOut]);
 

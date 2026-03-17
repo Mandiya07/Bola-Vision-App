@@ -2,7 +2,7 @@
 import React, { useState, useRef, MouseEvent } from 'react';
 import { useCamera } from '../hooks/useCamera';
 import { useMatchContext } from '../context/MatchContext';
-import type { FieldMarker, FieldMapping, Point } from '../types';
+import type { FieldMarker, FieldMapping } from '../types';
 
 interface CalibrationScreenProps {
   onCalibrationComplete: () => void;
@@ -63,43 +63,74 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onCalibrationComp
   const renderCameraOverlay = () => {
      if (permissionStatus === 'denied') {
         return (
-            <div className="text-center text-white bg-gray-800 p-8 rounded-lg shadow-lg max-w-lg">
-              <h2 className="text-2xl font-bold mb-4 text-red-500">Camera Access Denied</h2>
-              <p className="mb-6">Please allow camera access in your browser settings and reload.</p>
+            <div className="text-center glass-panel border-neon-yellow/30 p-8 rounded-[2rem] shadow-2xl max-w-lg animate-fade-in">
+              <h2 className="text-2xl font-display font-black mb-4 text-neon-yellow uppercase tracking-tighter italic">Access Denied</h2>
+              <p className="mb-6 font-body text-white/70">Optical sensors require authorization. Please enable camera access in system settings.</p>
+              <button onClick={() => window.location.reload()} className="glass-panel border-white/10 bg-white/5 hover:bg-white/10 text-white font-display font-bold py-3 px-8 rounded-xl uppercase tracking-widest transition-all">
+                Re-Initialize
+              </button>
             </div>
         );
     }
     if (cameraState === 'inactive') {
       return (
-        <div className="text-center text-white">
-          <h2 className="text-3xl font-bold mb-4">Field Calibration</h2>
-          <p className="mb-8">Start your camera to map the field.</p>
-          <button onClick={handleStartCamera} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg">
-            Start Camera
+        <div className="text-center glass-panel border-white/10 p-12 rounded-[3rem] shadow-2xl animate-fade-in">
+          <div className="w-20 h-20 mx-auto mb-6 border-2 border-neon-cyan/30 rounded-full flex items-center justify-center animate-pulse">
+            <div className="w-12 h-12 border-2 border-neon-cyan rounded-full" />
+          </div>
+          <h2 className="text-4xl font-display font-black mb-4 text-white uppercase tracking-widest italic">Sensor Calibration</h2>
+          <p className="mb-8 font-body text-white/50 uppercase tracking-[0.2em] text-xs">Initialize optical feed to map tactical grid</p>
+          <button 
+            onClick={handleStartCamera} 
+            className="glass-panel border-neon-cyan/30 bg-neon-cyan/5 hover:bg-neon-cyan/10 text-neon-cyan font-display font-black py-4 px-12 rounded-2xl text-lg uppercase tracking-[0.3em] transition-all hover:scale-105 hover:border-neon-cyan shadow-[0_0_30px_rgba(0,243,255,0.1)]"
+          >
+            Start Optical Feed
           </button>
         </div>
       );
     }
     if (cameraState === 'error') {
-      return <div className="text-center text-white bg-red-800/50 p-4 rounded-lg"><p>{cameraError}</p></div>
+      return (
+        <div className="text-center glass-panel border-neon-yellow/30 p-8 rounded-2xl animate-fade-in">
+          <p className="font-display font-bold text-neon-yellow uppercase tracking-widest">{cameraError}</p>
+        </div>
+      )
     }
     return null;
   };
 
   return (
-    <div className="relative w-screen h-screen bg-black flex flex-col items-center justify-center">
-      <h1 className="absolute top-5 left-5 text-2xl font-bold z-20 opacity-70" style={{ color: '#00e676' }}>BolaVision</h1>
+    <div className="relative w-screen h-screen bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
+      <div className="absolute top-8 left-8 flex flex-col items-start z-30 pointer-events-none">
+          <h1 className="text-3xl font-display font-black text-neon-cyan uppercase tracking-tighter italic">BolaVision</h1>
+          <p className="text-[10px] font-display font-bold text-white/30 uppercase tracking-[0.5em] mt-1">Calibration Mode // Grid Sync</p>
+      </div>
+
       <video
         ref={videoRef}
-        className="absolute top-0 left-0 w-full h-full object-cover"
+        className="absolute top-0 left-0 w-full h-full object-cover opacity-60 grayscale-[0.5] contrast-125"
         autoPlay
         playsInline
         muted
       />
       
+      {/* HUD Overlays */}
+      <div className="absolute inset-0 pointer-events-none z-10">
+        <div className="scanline opacity-20" />
+        <div className="absolute inset-0 border-[40px] border-slate-950/40" />
+        <div className="absolute top-1/2 left-0 w-full h-px bg-white/5" />
+        <div className="absolute top-0 left-1/2 w-px h-full bg-white/5" />
+        
+        {/* Corner Accents */}
+        <div className="absolute top-12 left-12 w-8 h-8 border-t-2 border-l-2 border-neon-cyan/50" />
+        <div className="absolute top-12 right-12 w-8 h-8 border-t-2 border-r-2 border-neon-cyan/50" />
+        <div className="absolute bottom-12 left-12 w-8 h-8 border-b-2 border-l-2 border-neon-cyan/50" />
+        <div className="absolute bottom-12 right-12 w-8 h-8 border-b-2 border-r-2 border-neon-cyan/50" />
+      </div>
+      
       <div
         ref={overlayRef}
-        className="absolute top-0 left-0 w-full h-full cursor-crosshair"
+        className="absolute top-0 left-0 w-full h-full cursor-crosshair z-20"
         onClick={handleOverlayClick}
       >
         {Object.keys(fieldMapping).map((key, index) => {
@@ -108,87 +139,110 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onCalibrationComp
             point && (
               <div
                 key={key}
-                className="absolute w-6 h-6 bg-yellow-400 border-2 border-black rounded-full flex items-center justify-center font-bold text-sm"
+                className="absolute group"
                 style={{ left: `${point.x}%`, top: `${point.y}%`, transform: 'translate(-50%, -50%)' }}
               >
-                {index + 1}
+                <div className="absolute -inset-4 border border-neon-cyan/30 rounded-full animate-ping opacity-50" />
+                <div className="relative w-8 h-8 glass-panel border-neon-cyan bg-neon-cyan/20 rounded-full flex items-center justify-center font-display font-black text-neon-cyan text-xs shadow-[0_0_15px_rgba(0,243,255,0.5)]">
+                  {index + 1}
+                </div>
+                <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] font-display font-bold text-neon-cyan uppercase tracking-widest bg-slate-950/80 px-2 py-1 rounded border border-neon-cyan/30">
+                  {MARKERS_TO_PLACE[index].label}
+                </div>
               </div>
             )
           );
         })}
 
-        {/* Top line */}
-        {fieldMapping.topLeftCorner && fieldMapping.topRightCorner &&
-          (() => {
-            const tlc = fieldMapping.topLeftCorner!;
-            const trc = fieldMapping.topRightCorner!;
-            const left = Math.min(tlc.x, trc.x);
-            const top = tlc.y;
-            const width = Math.abs(tlc.x - trc.x);
-            return <div className="absolute border-t-4 border-yellow-400 border-dashed" style={{left: `${left}%`, top: `${top}%`, width: `${width}%`}}></div>
-          })()
-        }
-        {/* Right line */}
-        {fieldMapping.topRightCorner && fieldMapping.bottomRightCorner &&
-          (() => {
-            const trc = fieldMapping.topRightCorner!;
-            const brc = fieldMapping.bottomRightCorner!;
-            const left = trc.x;
-            const top = Math.min(trc.y, brc.y);
-            const height = Math.abs(trc.y - brc.y);
-            return <div className="absolute border-l-4 border-yellow-400 border-dashed" style={{left: `${left}%`, top: `${top}%`, height: `${height}%`}}></div>
-          })()
-        }
-        {/* Bottom line */}
-        {fieldMapping.bottomRightCorner && fieldMapping.bottomLeftCorner &&
-          (() => {
-            const blc = fieldMapping.bottomLeftCorner!;
-            const brc = fieldMapping.bottomRightCorner!;
-            const left = Math.min(blc.x, brc.x);
-            const top = blc.y;
-            const width = Math.abs(blc.x - brc.x);
-            return <div className="absolute border-t-4 border-yellow-400 border-dashed" style={{left: `${left}%`, top: `${top}%`, width: `${width}%`}}></div>
-          })()
-        }
-        {/* Left line */}
-        {fieldMapping.bottomLeftCorner && fieldMapping.topLeftCorner &&
-          (() => {
-            const blc = fieldMapping.bottomLeftCorner!;
-            const tlc = fieldMapping.topLeftCorner!;
-            const left = tlc.x;
-            const top = Math.min(tlc.y, blc.y);
-            const height = Math.abs(tlc.y - blc.y);
-            return <div className="absolute border-l-4 border-yellow-400 border-dashed" style={{left: `${left}%`, top: `${top}%`, height: `${height}%`}}></div>
-          })()
-        }
+        {/* Tactical Grid Lines */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          
+          {fieldMapping.topLeftCorner && fieldMapping.topRightCorner && (
+            <line 
+              x1={`${fieldMapping.topLeftCorner.x}%`} y1={`${fieldMapping.topLeftCorner.y}%`}
+              x2={`${fieldMapping.topRightCorner.x}%`} y2={`${fieldMapping.topRightCorner.y}%`}
+              stroke="rgba(0, 243, 255, 0.5)" strokeWidth="2" strokeDasharray="8 4" filter="url(#glow)"
+            />
+          )}
+          {fieldMapping.topRightCorner && fieldMapping.bottomRightCorner && (
+            <line 
+              x1={`${fieldMapping.topRightCorner.x}%`} y1={`${fieldMapping.topRightCorner.y}%`}
+              x2={`${fieldMapping.bottomRightCorner.x}%`} y2={`${fieldMapping.bottomRightCorner.y}%`}
+              stroke="rgba(0, 243, 255, 0.5)" strokeWidth="2" strokeDasharray="8 4" filter="url(#glow)"
+            />
+          )}
+          {fieldMapping.bottomRightCorner && fieldMapping.bottomLeftCorner && (
+            <line 
+              x1={`${fieldMapping.bottomRightCorner.x}%`} y1={`${fieldMapping.bottomRightCorner.y}%`}
+              x2={`${fieldMapping.bottomLeftCorner.x}%`} y2={`${fieldMapping.bottomLeftCorner.y}%`}
+              stroke="rgba(0, 243, 255, 0.5)" strokeWidth="2" strokeDasharray="8 4" filter="url(#glow)"
+            />
+          )}
+          {fieldMapping.bottomLeftCorner && fieldMapping.topLeftCorner && (
+            <line 
+              x1={`${fieldMapping.bottomLeftCorner.x}%`} y1={`${fieldMapping.bottomLeftCorner.y}%`}
+              x2={`${fieldMapping.topLeftCorner.x}%`} y2={`${fieldMapping.topLeftCorner.y}%`}
+              stroke="rgba(0, 243, 255, 0.5)" strokeWidth="2" strokeDasharray="8 4" filter="url(#glow)"
+            />
+          )}
+        </svg>
       </div>
 
       {cameraState !== 'active' && (
-        <div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-20">
+        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-40">
           {renderCameraOverlay()}
         </div>
       )}
 
-      <div className="absolute top-5 left-1/2 -translate-x-1/2 w-11/12 max-w-lg bg-black/70 p-4 rounded-lg text-center z-10">
-        <h2 className="text-xl font-bold text-yellow-300">Field Calibration</h2>
+      <div className="absolute top-12 left-1/2 -translate-x-1/2 w-11/12 max-w-lg glass-panel border-white/10 bg-slate-950/40 p-6 rounded-3xl text-center z-30 backdrop-blur-md">
+        <h2 className="text-xs font-display font-bold text-white/40 uppercase tracking-[0.4em] mb-2">Tactical Grid Alignment</h2>
         {isComplete ? (
-           <p className="text-lg mt-2 text-green-400">Calibration Complete!</p>
+           <div className="flex items-center justify-center gap-3 text-neon-emerald animate-pulse">
+             <div className="w-2 h-2 rounded-full bg-neon-emerald shadow-[0_0_10px_rgba(16,255,145,1)]" />
+             <p className="text-lg font-display font-black uppercase tracking-widest italic">Grid Synchronized</p>
+           </div>
         ) : (
-           <p className="text-lg mt-2">Step {currentStep + 1}/{MARKERS_TO_PLACE.length}: Tap the <span className="font-bold">{MARKERS_TO_PLACE[currentStep].label}</span></p>
+           <div className="space-y-1">
+             <p className="text-lg font-display font-black text-white uppercase tracking-widest italic">
+               Step {currentStep + 1} <span className="text-white/30">/ {MARKERS_TO_PLACE.length}</span>
+             </p>
+             <p className="text-[10px] font-display font-bold text-neon-cyan uppercase tracking-[0.2em]">
+               Target: <span className="text-white">{MARKERS_TO_PLACE[currentStep].label}</span>
+             </p>
+           </div>
         )}
       </div>
 
-       <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 z-10">
-        <div className="flex gap-4">
-          <button onClick={handleReset} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg">
+       <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-6 z-30 w-full max-w-md px-4">
+        <div className="flex gap-4 w-full">
+          <button 
+            onClick={handleReset} 
+            className="flex-1 glass-panel border-white/10 bg-white/5 hover:bg-white/10 text-white font-display font-bold py-4 px-6 rounded-2xl uppercase tracking-widest transition-all hover:border-neon-yellow hover:text-neon-yellow"
+          >
             Reset
           </button>
-          <button onClick={handleConfirm} disabled={!isComplete} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg disabled:bg-gray-500 disabled:cursor-not-allowed">
-            Confirm & Start
+          <button 
+            onClick={handleConfirm} 
+            disabled={!isComplete} 
+            className="flex-[2] glass-panel border-neon-cyan/30 bg-neon-cyan/5 hover:bg-neon-cyan/10 text-neon-cyan font-display font-black py-4 px-6 rounded-2xl uppercase tracking-[0.2em] transition-all hover:scale-105 hover:border-neon-cyan disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed shadow-[0_0_30px_rgba(0,243,255,0.1)]"
+          >
+            Confirm & Sync
           </button>
         </div>
-        <button onClick={onCalibrationComplete} className="text-gray-300 hover:text-white text-sm underline transition-colors">
-          Skip for now
+        <button 
+          onClick={onCalibrationComplete} 
+          className="text-white/30 hover:text-white text-[10px] font-display font-bold uppercase tracking-[0.4em] transition-all hover:tracking-[0.5em]"
+        >
+          Bypass Calibration
         </button>
       </div>
     </div>

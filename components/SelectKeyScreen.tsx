@@ -11,7 +11,7 @@ const SelectKeyScreen: React.FC<SelectKeyScreenProps> = ({ onKeySelected }) => {
   const [isDevEnvironment, setIsDevEnvironment] = useState(false);
 
   useEffect(() => {
-    // @ts-ignore
+    // @ts-expect-error - aistudio is injected
     if (window.aistudio) {
       setIsDevEnvironment(true);
     }
@@ -21,7 +21,7 @@ const SelectKeyScreen: React.FC<SelectKeyScreenProps> = ({ onKeySelected }) => {
   const handleSelectKey = async () => {
     setValidationError('');
     try {
-        // @ts-ignore - aistudio is globally available in this environment
+        // @ts-expect-error - aistudio is globally available in this environment
         await window.aistudio.openSelectKey();
         setIsValidating(true);
         const { isValid, error } = await validateApiKey();

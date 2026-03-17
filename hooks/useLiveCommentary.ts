@@ -3,7 +3,7 @@ import { GoogleGenAI, LiveServerMessage, Modality, Blob as GenAiBlob } from '@go
 import type { MatchState, CommentaryStyle } from '../types';
 import { blobToBase64, decode, encode, decodeAudioData } from '../utils/mediaUtils';
 
-declare var process: {
+declare const process: {
   env: {
     API_KEY: string;
   }
@@ -34,7 +34,7 @@ export const useLiveCommentary = ({ isActive, matchState, videoRef, canvasRef, o
   const outputAudioContextRef = useRef<AudioContext | null>(null);
   const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const nextStartTimeRef = useRef(0);
-  const liveSessionPromiseRef = useRef<Promise<any> | null>(null);
+  const liveSessionPromiseRef = useRef<Promise<unknown> | null>(null);
   const microphoneStreamRef = useRef<MediaStream | null>(null);
   const frameIntervalRef = useRef<number | null>(null);
 
@@ -47,7 +47,9 @@ export const useLiveCommentary = ({ isActive, matchState, videoRef, canvasRef, o
         if (liveSessionPromiseRef.current) {
             try {
                 const session = await liveSessionPromiseRef.current;
-                session.close();
+                if (session && typeof session === 'object' && 'close' in session) {
+                    (session as { close: () => void }).close();
+                }
             } catch (e) {
                 console.error("Error closing live session:", e);
             } finally {
@@ -116,9 +118,40 @@ export const useLiveCommentary = ({ isActive, matchState, videoRef, canvasRef, o
                     callbacks: {
                         onopen: async () => {
                             try {
-                                // Start audio streaming
-                                microphoneStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-                                inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+                                // Start audio streaming with timeout and retry
+                                const getMicrophoneWithTimeout = async (timeoutMs: number) => {
+                                    console.log(`[useLiveCommentary] Requesting microphone (timeout: ${timeoutMs}ms)...`);
+                                    let timeoutId: ReturnType<typeof setTimeout>;
+                                    
+                                    const timeoutPromise = new Promise<never>((_, reject) => {
+                                        timeoutId = setTimeout(() => {
+                                            console.error(`[useLiveCommentary] Microphone access HANG detected after ${timeoutMs}ms`);
+                                            reject(new DOMException("Microphone initialization timed out.", "TimeoutError"));
+                                        }, timeoutMs);
+                                    });
+
+                                    try {
+                                        const result = await Promise.race([
+                                            navigator.mediaDevices.getUserMedia({ audio: true }),
+                                            timeoutPromise
+                                        ]);
+                                        clearTimeout(timeoutId!);
+                                        return result;
+                                    } catch (err) {
+                                        clearTimeout(timeoutId!);
+                                        throw err;
+                                    }
+                                };
+
+                                try {
+                                    microphoneStreamRef.current = await getMicrophoneWithTimeout(15000);
+                                } catch (micErr) {
+                                    console.warn("[useLiveCommentary] Initial microphone attempt failed, retrying once...", micErr);
+                                    await new Promise(resolve => setTimeout(resolve, 1000));
+                                    microphoneStreamRef.current = await getMicrophoneWithTimeout(10000);
+                                }
+
+                                inputAudioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)({ sampleRate: 16000 });
                                 
                                 microphoneSource = inputAudioContext.createMediaStreamSource(microphoneStreamRef.current);
                                 scriptProcessor = inputAudioContext.createScriptProcessor(4096, 1, 1);
@@ -130,7 +163,9 @@ export const useLiveCommentary = ({ isActive, matchState, videoRef, canvasRef, o
                                         mimeType: 'audio/pcm;rate=16000',
                                     };
                                     liveSessionPromiseRef.current?.then((session) => {
-                                        session.sendRealtimeInput({ media: pcmBlob });
+                                        if (session && typeof session === 'object' && 'sendRealtimeInput' in session) {
+                                            (session as { sendRealtimeInput: (input: unknown) => void }).sendRealtimeInput({ media: pcmBlob });
+                                        }
                                     });
                                 };
                                 
@@ -154,9 +189,11 @@ export const useLiveCommentary = ({ isActive, matchState, videoRef, canvasRef, o
                                                     if (blob) {
                                                         const base64Data = await blobToBase64(blob);
                                                         liveSessionPromiseRef.current?.then((session) => {
-                                                            session.sendRealtimeInput({
-                                                                media: { data: base64Data, mimeType: 'image/jpeg' }
-                                                            });
+                                                            if (session && typeof session === 'object' && 'sendRealtimeInput' in session) {
+                                                                (session as { sendRealtimeInput: (input: unknown) => void }).sendRealtimeInput({
+                                                                    media: { data: base64Data, mimeType: 'image/jpeg' }
+                                                                });
+                                                            }
                                                         });
                                                     }
                                                 },
@@ -193,7 +230,7 @@ export const useLiveCommentary = ({ isActive, matchState, videoRef, canvasRef, o
                             if (base64Audio) {
                                 setAudioStatus('playing');
                                 if (!outputAudioContextRef.current) {
-                                    outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+                                    outputAudioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)({ sampleRate: 24000 });
                                 }
                                 const audioContext = outputAudioContextRef.current;
                                 if (audioContext.state === 'suspended') await audioContext.resume();
@@ -228,7 +265,7 @@ export const useLiveCommentary = ({ isActive, matchState, videoRef, canvasRef, o
                             setAudioStatus('error');
                             setLiveTranscription("Error: Live commentary session failed.");
                         },
-                        onclose: (e: CloseEvent) => {
+                        onclose: () => {
                             console.log('Live session closed.');
                             setAudioStatus('idle');
                         },

@@ -37,7 +37,7 @@ const KeyPlayerSpotlight: React.FC = () => {
         return null;
     }
 
-    const { player, team: teamSide, analysis } = keyPlayerSpotlight;
+    const { player, team: teamSide } = keyPlayerSpotlight;
     const team = teamSide === 'home' ? state.homeTeam : state.awayTeam;
 
     const playerPhoto = player.photo || `https://ui-avatars.com/api/?name=${player.name.replace(' ', '+')}&background=random&size=256`;

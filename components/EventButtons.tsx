@@ -9,42 +9,42 @@ interface EventButtonsProps {
 }
 
 const eventConfig: { type: GameEventType; label: string; className: string; icon?: React.ReactNode }[] = [
-    { type: 'GOAL', label: 'GOAL', className: 'bg-yellow-500 hover:bg-yellow-600 text-black' },
-    { type: 'ASSIST', label: 'ASSIST', className: 'bg-cyan-600 hover:bg-cyan-700' },
-    { type: 'SHOT_ON_TARGET', label: 'SHOT ON', className: 'bg-gray-500 hover:bg-gray-600' },
-    { type: 'SHOT_OFF_TARGET', label: 'SHOT OFF', className: 'bg-gray-500 hover:bg-gray-600' },
-    { type: 'TACKLE', label: 'TACKLE', className: 'bg-gray-500 hover:bg-gray-600' },
-    { type: 'PASS', label: 'PASS', className: 'bg-gray-500 hover:bg-gray-600' },
-    { type: 'FOUL', label: 'FOUL', className: 'bg-orange-500 hover:bg-orange-600' },
-    { type: 'YELLOW_CARD', label: 'YELLOW C', className: 'bg-yellow-400 text-black hover:bg-yellow-500' },
-    { type: 'RED_CARD', label: 'RED C', className: 'bg-red-500 hover:bg-red-600' },
-    { type: 'INJURY', label: '', className: 'bg-cyan-500 hover:bg-cyan-600', icon: <MedicalIcon className="w-5 h-5" /> },
-    { type: 'CORNER', label: 'CORNER', className: 'bg-teal-500 hover:bg-teal-600' },
-    { type: 'OFFSIDE', label: 'OFFSIDE', className: 'bg-indigo-500 hover:bg-indigo-600' },
-    { type: 'SAVE', label: 'SAVE', className: 'bg-cyan-500 hover:bg-cyan-600' },
+    { type: 'GOAL', label: 'GOAL', className: 'neon-border-cyan text-neon-cyan hover:bg-neon-cyan/10' },
+    { type: 'ASSIST', label: 'ASSIST', className: 'border-white/10 text-white/80 hover:border-neon-cyan/40 hover:text-white' },
+    { type: 'SHOT_ON_TARGET', label: 'SHOT ON', className: 'border-white/10 text-white/80 hover:border-neon-cyan/40 hover:text-white' },
+    { type: 'SHOT_OFF_TARGET', label: 'SHOT OFF', className: 'border-white/10 text-white/80 hover:border-neon-cyan/40 hover:text-white' },
+    { type: 'TACKLE', label: 'TACKLE', className: 'border-white/10 text-white/80 hover:border-neon-cyan/40 hover:text-white' },
+    { type: 'PASS', label: 'PASS', className: 'border-white/10 text-white/80 hover:border-neon-cyan/40 hover:text-white' },
+    { type: 'FOUL', label: 'FOUL', className: 'border-orange-500/30 text-orange-400 hover:border-orange-500/60 hover:text-orange-300' },
+    { type: 'YELLOW_CARD', label: 'YELLOW', className: 'border-neon-yellow/30 text-neon-yellow hover:border-neon-yellow/60 hover:text-neon-yellow' },
+    { type: 'RED_CARD', label: 'RED', className: 'border-red-500/30 text-red-400 hover:border-red-500/60 hover:text-red-300' },
+    { type: 'INJURY', label: '', className: 'border-neon-cyan/30 text-neon-cyan hover:border-neon-cyan/60', icon: <MedicalIcon className="w-5 h-5" /> },
+    { type: 'CORNER', label: 'CORNER', className: 'border-white/10 text-white/80 hover:border-neon-cyan/40 hover:text-white' },
+    { type: 'OFFSIDE', label: 'OFFSIDE', className: 'border-white/10 text-white/80 hover:border-neon-cyan/40 hover:text-white' },
+    { type: 'SAVE', label: 'SAVE', className: 'border-neon-emerald/30 text-neon-emerald hover:border-neon-emerald/60' },
 ];
 
-const tooltipClass = "absolute bottom-full mb-2 w-max max-w-xs px-3 py-1.5 text-xs font-semibold text-white bg-gray-900/90 backdrop-blur-sm rounded-lg shadow-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none text-center z-10";
+const tooltipClass = "absolute bottom-full mb-3 w-max max-w-xs px-4 py-2 text-[10px] font-display font-bold uppercase tracking-widest text-neon-cyan glass-panel border-neon-cyan/30 rounded-lg shadow-[0_0_15px_rgba(0,243,255,0.2)] opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none text-center z-50";
 
 const tooltips: Record<string, string> = {
-    GOAL: 'Log a goal for the selected player/team.',
-    ASSIST: 'Log an assist for the selected player.',
-    SHOT_ON_TARGET: 'Log a shot on target for the selected player/team.',
-    SHOT_OFF_TARGET: 'Log a shot off target for the selected player/team.',
-    TACKLE: 'Log a successful tackle for the selected player.',
-    PASS: 'Log a completed pass for the selected player.',
-    FOUL: 'Log a foul committed by the selected player/team.',
-    YELLOW_CARD: 'Log a yellow card for the selected player.',
-    RED_CARD: 'Log a red card for the selected player.',
-    INJURY: 'Log an injury for the selected player and pause the clock.',
-    CORNER: 'Log a corner kick for the selected team.',
-    OFFSIDE: 'Log an offside call against the selected team.',
-    SAVE: 'Log a save made by the selected player/team.',
+    GOAL: 'INITIATE SCORING PROTOCOL',
+    ASSIST: 'LOG TACTICAL FACILITATION',
+    SHOT_ON_TARGET: 'KINETIC IMPACT DETECTED (ON TARGET)',
+    SHOT_OFF_TARGET: 'KINETIC IMPACT DETECTED (OFF TARGET)',
+    TACKLE: 'DEFENSIVE INTERCEPTION LOGGED',
+    PASS: 'DATA TRANSFER SUCCESSFUL',
+    FOUL: 'VIOLATION DETECTED',
+    YELLOW_CARD: 'PRIMARY WARNING ISSUED',
+    RED_CARD: 'TERMINATION PROTOCOL INITIATED',
+    INJURY: 'BIOMETRIC FAILURE DETECTED',
+    CORNER: 'SET PIECE ACQUISITION',
+    OFFSIDE: 'POSITIONAL ANOMALY DETECTED',
+    SAVE: 'DEFENSIVE SHIELD ACTIVE',
 };
 
 const EventButtons: React.FC<EventButtonsProps> = ({ onLogEvent, disabled, canLogInjury }) => {
   return (
-    <div className="grid grid-cols-4 md:grid-cols-7 gap-2 text-xs">
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-3 text-[10px] font-display font-bold uppercase tracking-widest">
       {eventConfig.map(({ type, label, className, icon }) => {
         const isInjuryButton = type === 'INJURY';
         const isButtonDisabled = disabled || (isInjuryButton && !canLogInjury);
@@ -52,7 +52,7 @@ const EventButtons: React.FC<EventButtonsProps> = ({ onLogEvent, disabled, canLo
           <div key={type} className="relative group">
             <button
               onClick={() => onLogEvent(type)}
-              className={`w-full h-full font-bold p-2 rounded-lg transition disabled:opacity-50 flex items-center justify-center ${className}`}
+              className={`w-full h-12 glass-panel transition-all duration-300 disabled:opacity-20 flex items-center justify-center active:scale-95 ${className}`}
               disabled={isButtonDisabled}
             >
               {icon || label}

@@ -38,30 +38,30 @@ const getEventIcon = (type: GameEvent['type']) => {
 }
 
 const getEventText = (event: GameEvent): string => {
-    const playerName = event.playerName ? ` ${event.playerName}` : '';
+    const playerName = event.playerName ? ` ${event.playerName.toUpperCase()}` : '';
     switch (event.type) {
         case 'GOAL':
-            return `Goal!${playerName}`;
+            return `SCORING PROTOCOL: ${playerName}`;
         case 'YELLOW_CARD':
-            return `Yellow Card${playerName}`;
+            return `PRIMARY WARNING: ${playerName}`;
         case 'RED_CARD':
-            return `Red Card${playerName}`;
+            return `TERMINATION: ${playerName}`;
         case 'SUBSTITUTION':
-            return `Sub: ${event.playerIn?.name} for ${event.playerOut?.name}`;
+            return `UNIT SWAP: ${event.playerIn?.name.toUpperCase()} ↔ ${event.playerOut?.name.toUpperCase()}`;
         case 'INJURY':
-            return `Injury${playerName}`;
+            return `BIOMETRIC FAILURE: ${playerName}`;
         case 'FOUL':
-            return `Foul by${playerName}`;
+            return `VIOLATION: ${playerName}`;
         case 'SAVE':
-            return `Save!${playerName}`;
+            return `DEFENSIVE SHIELD: ${playerName}`;
         case 'SHOT_ON_TARGET':
-            return `Shot on Target${playerName}`;
+            return `KINETIC IMPACT (ON): ${playerName}`;
         case 'SHOT_OFF_TARGET':
-            return `Shot Off Target${playerName}`;
+            return `KINETIC IMPACT (OFF): ${playerName}`;
         case 'CORNER':
-            return `Corner: ${event.teamName}`;
+            return `SET PIECE: ${event.teamName.toUpperCase()}`;
         case 'OFFSIDE':
-            return `Offside: ${event.teamName}`;
+            return `POSITIONAL ANOMALY: ${event.teamName.toUpperCase()}`;
         default:
             return '';
     }
@@ -98,22 +98,23 @@ const EventLog: React.FC = () => {
     }
 
     return (
-        <div className="absolute bottom-20 left-2 w-[48%] max-w-[280px] max-h-48 bg-gray-900/70 backdrop-blur-md rounded-lg shadow-lg flex flex-col animate-fade-in-fast z-20 md:bottom-auto md:top-28 md:left-4 md:w-64">
-            <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider p-2 border-b border-gray-700 text-center">
-                Event Log
+        <div className="absolute bottom-24 left-4 w-[60%] max-w-[320px] max-h-64 glass-panel border-white/5 rounded-2xl shadow-2xl flex flex-col animate-fade-in-fast z-20 md:bottom-auto md:top-32 md:left-6 md:w-72 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-b from-neon-cyan/5 to-transparent pointer-events-none" />
+            <h3 className="text-[10px] font-display font-bold text-neon-cyan uppercase tracking-[0.3em] p-3 border-b border-white/5 text-center bg-white/5">
+                Tactical Event Feed
             </h3>
-            <div ref={scrollRef} className="flex-1 overflow-y-auto p-1 space-y-1">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-hide">
                 {keyEvents.map(event => (
-                    <div key={event.id} className="flex items-center gap-2 p-1.5 bg-black/30 rounded-md text-white text-xs group">
-                        <div className="font-bold w-8 text-center">{formatTime(event.matchTime)}</div>
-                        <div className="w-6 flex-shrink-0 flex items-center justify-center">{getEventIcon(event.type)}</div>
-                        <div className="flex-1 truncate">{getEventText(event)}</div>
+                    <div key={event.id} className="flex items-center gap-3 p-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-white text-[10px] font-body font-medium group transition-all duration-300">
+                        <div className="font-display font-bold text-neon-cyan w-10 text-center border-r border-white/10 pr-2">{formatTime(event.matchTime)}</div>
+                        <div className="w-6 flex-shrink-0 flex items-center justify-center filter drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]">{getEventIcon(event.type)}</div>
+                        <div className="flex-1 truncate tracking-wider">{getEventText(event)}</div>
                         <button 
                             onClick={() => dispatch({ type: 'OPEN_SOCIAL_MODAL', payload: event })}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity bg-cyan-600/50 hover:bg-cyan-500 p-1 rounded-full"
+                            className="opacity-0 group-hover:opacity-100 transition-all duration-300 bg-neon-cyan/20 hover:bg-neon-cyan text-neon-cyan hover:text-black p-1.5 rounded-lg border border-neon-cyan/30"
                             title="Generate social media post"
                         >
-                            <ShareIcon className="w-4 h-4"/>
+                            <ShareIcon className="w-3.5 h-3.5"/>
                         </button>
                     </div>
                 ))}

@@ -34,7 +34,8 @@ const PlayerSelector: React.FC<PlayerSelectorProps> = ({
 
   useEffect(() => {
     // Reset search when team changes
-    setPlayerSearch('');
+    const timer = setTimeout(() => setPlayerSearch(''), 0);
+    return () => clearTimeout(timer);
   }, [selectedTeam]);
 
   useEffect(() => {
@@ -55,31 +56,43 @@ const PlayerSelector: React.FC<PlayerSelectorProps> = ({
   }
 
   return (
-    <div className="flex justify-center items-start gap-4 px-2 bg-gray-800/50 p-2 rounded-lg">
-      <div className="flex-1 flex flex-col justify-center items-center gap-1">
-        <label className="text-gray-300 font-semibold text-sm">Team:</label>
-        <select value={selectedTeam} onChange={(e) => onTeamChange(e.target.value as 'home' | 'away')} className="w-full max-w-xs bg-gray-700 text-white rounded p-1 border border-gray-600 focus:ring-2 focus:ring-indigo-500 text-sm" disabled={disabled}>
+    <div className="flex flex-col sm:flex-row justify-center items-stretch gap-4 px-4 glass-panel border-white/5 p-4 rounded-2xl">
+      <div className="flex-1 flex flex-col gap-2">
+        <label className="text-white/40 font-display font-bold text-[10px] uppercase tracking-[0.2em] ml-1">Team Designation</label>
+        <select 
+          value={selectedTeam} 
+          onChange={(e) => onTeamChange(e.target.value as 'home' | 'away')} 
+          className="w-full glass-panel border-white/10 text-white rounded-xl p-2.5 font-display font-bold text-xs uppercase tracking-wider focus:border-neon-cyan outline-none transition-all cursor-pointer appearance-none bg-slate-900/40" 
+          disabled={disabled}
+        >
           <option value="home">{homeTeam.name}</option>
           <option value="away">{awayTeam.name}</option>
         </select>
       </div>
-      <div className="flex-1 flex flex-col justify-center items-center gap-1">
-        <label className="text-gray-300 font-semibold text-sm">Player:</label>
-        <input
-          type="text"
-          placeholder="Find by name/no."
-          value={playerSearch}
-          onChange={(e) => setPlayerSearch(e.target.value)}
-          className="w-full max-w-xs bg-gray-900 text-white rounded p-1 border border-gray-600 focus:ring-2 focus:ring-indigo-500 text-sm text-center"
-          disabled={currentTeamPlayers.length === 0 || disabled}
-        />
-        <select value={selectedPlayer?.number?.toString() ?? ''} onChange={(e) => handleSelectPlayer(e.target.value)} className="w-full max-w-xs bg-gray-700 text-white rounded p-1 border border-gray-600 focus:ring-2 focus:ring-indigo-500 text-sm" disabled={filteredPlayers.length === 0 || disabled}>
-          {filteredPlayers.length === 0 ? (
-            <option value="">No matching players</option>
-          ) : (
-            filteredPlayers.map(p => <option key={p.number} value={p.number.toString()}>#{p.number} {p.name}</option>)
-          )}
-        </select>
+      <div className="flex-1 flex flex-col gap-2">
+        <label className="text-white/40 font-display font-bold text-[10px] uppercase tracking-[0.2em] ml-1">Subject Identification</label>
+        <div className="flex flex-col gap-2">
+          <input
+            type="text"
+            placeholder="SCAN BY NAME / NO."
+            value={playerSearch}
+            onChange={(e) => setPlayerSearch(e.target.value)}
+            className="w-full glass-panel border-white/10 text-white rounded-xl p-2.5 font-display font-bold text-[10px] uppercase tracking-widest focus:border-neon-cyan outline-none transition-all placeholder:text-white/20 bg-slate-900/40"
+            disabled={currentTeamPlayers.length === 0 || disabled}
+          />
+          <select 
+            value={selectedPlayer?.number?.toString() ?? ''} 
+            onChange={(e) => handleSelectPlayer(e.target.value)} 
+            className="w-full glass-panel border-white/10 text-white rounded-xl p-2.5 font-display font-bold text-xs uppercase tracking-wider focus:border-neon-cyan outline-none transition-all cursor-pointer appearance-none bg-slate-900/40" 
+            disabled={filteredPlayers.length === 0 || disabled}
+          >
+            {filteredPlayers.length === 0 ? (
+              <option value="">NO MATCHING SUBJECTS</option>
+            ) : (
+              filteredPlayers.map(p => <option key={p.number} value={p.number.toString()}>#{p.number} {p.name}</option>)
+            )}
+          </select>
+        </div>
       </div>
     </div>
   );

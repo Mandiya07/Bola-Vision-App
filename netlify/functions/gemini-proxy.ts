@@ -62,11 +62,12 @@ const handler: Handler = async (event: HandlerEvent) => {
       body: JSON.stringify(result),
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in Gemini proxy function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An internal server error occurred';
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: error.message || 'An internal server error occurred' }),
+      body: JSON.stringify({ error: errorMessage }),
     };
   }
 };

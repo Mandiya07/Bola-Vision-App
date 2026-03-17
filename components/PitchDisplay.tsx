@@ -1,5 +1,5 @@
 import React, { useState, MouseEvent } from 'react';
-import type { Team, Player } from '../types';
+import type { Team } from '../types';
 
 interface PitchDisplayProps {
   team: Team;

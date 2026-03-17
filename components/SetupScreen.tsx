@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Player, Team, MatchState, Monetization, CommentaryStyle, CommentaryLanguage, BroadcastStyle, Official, WeatherCondition } from '../types';
 import { loadDecryptedState, clearDB, getSavedVideosList, getDecryptedBlobById, deleteVideo } from '../services/storageService';
@@ -9,6 +10,88 @@ interface SetupScreenProps {
   onLoadMatch: (savedState: MatchState) => void;
   onLogout: () => void;
 }
+
+// Preview Component for Scoreboard Templates
+const TemplatePreview: React.FC<{ id: string }> = ({ id }) => {
+  const homeColor = '#3b82f6';
+  const awayColor = '#ef4444';
+
+  if (id === 'minimal') {
+    return (
+        <div className="flex items-center gap-2 glass-panel border-white/10 px-3 py-1.5 rounded-full text-white font-mono shadow-lg transform scale-110">
+            <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-neon-cyan shadow-[0_0_8px_rgba(0,243,255,0.5)]"></div>
+                <span className="font-display font-black text-sm">2</span>
+            </div>
+            <div className="flex flex-col items-center px-1">
+                <span className="text-[8px] font-display font-bold text-neon-yellow">45:00</span>
+            </div>
+            <div className="flex items-center gap-1">
+                <span className="font-display font-black text-sm">1</span>
+                <div className="w-3 h-3 rounded-full bg-neon-emerald shadow-[0_0_8px_rgba(16,255,145,0.5)]"></div>
+            </div>
+        </div>
+    );
+  }
+
+  if (id === 'broadcast') {
+    return (
+        <div className="flex flex-col items-center transform scale-110">
+            <div className="text-[8px] font-display font-black text-white/60 bg-slate-950/80 px-2 rounded-t mb-[-1px] z-10 tracking-widest uppercase">LEAGUE</div>
+            <div className="flex items-end shadow-2xl">
+                <div className="flex items-center p-1 rounded-l border-l border-y border-white/10" style={{ background: `linear-gradient(90deg, ${homeColor}40 0%, transparent 100%)` }}>
+                    <span className="text-[10px] font-display font-black text-white px-2 tracking-tighter">HOME</span>
+                </div>
+                <div className="glass-panel border-white/20 flex items-center px-3 py-1 text-xl font-display font-black text-white">
+                    <span>2</span><span className="text-neon-cyan mx-1">:</span><span>1</span>
+                </div>
+                <div className="flex items-center p-1 rounded-r border-r border-y border-white/10" style={{ background: `linear-gradient(-90deg, ${awayColor}40 0%, transparent 100%)` }}>
+                    <span className="text-[10px] font-display font-black text-white px-2 tracking-tighter">AWAY</span>
+                </div>
+            </div>
+            <div className="mt-1 glass-panel border-neon-cyan/30 px-3 rounded-full text-[8px] font-display font-bold text-neon-cyan flex items-center gap-1.5 py-0.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-pulse shadow-[0_0_5px_rgba(0,243,255,1)]"></div>
+                45:00
+            </div>
+        </div>
+    );
+  }
+
+  if (id === 'retro') {
+    return (
+        <div className="flex items-center gap-2 bg-slate-900 border-2 border-neon-emerald/30 px-3 py-1.5 rounded text-neon-emerald font-mono shadow-lg transform scale-110">
+            <span className="font-bold text-xs tracking-tighter">HM</span>
+            <span className="font-black text-lg tracking-widest">02-01</span>
+            <span className="font-bold text-xs tracking-tighter">AW</span>
+            <span className="text-[8px] opacity-70">45:00</span>
+        </div>
+    );
+  }
+
+  // Default / Classic
+  return (
+    <div className="flex flex-col gap-0.5 font-display select-none transform scale-110">
+        <div className="flex items-center justify-between glass-panel border-white/10 text-white/40 text-[8px] font-black uppercase tracking-[0.3em] px-2 py-1 rounded-t border-b-0 w-32">
+            <span>PREMIER</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-neon-cyan shadow-[0_0_5px_rgba(0,243,255,1)]"></div>
+        </div>
+        <div className="flex h-8 shadow-2xl rounded-b overflow-hidden border border-white/10">
+            <div className="flex-1 flex items-center justify-end bg-slate-900/90 pl-2 pr-1 gap-1 relative border-l-2" style={{ borderColor: homeColor }}>
+                <span className="text-white/80 font-display font-bold text-[10px] tracking-tighter">HOME</span>
+            </div>
+            <div className="flex flex-col items-center justify-center glass-panel border-x border-y-0 border-white/10 px-2">
+                <div className="flex items-center gap-1 text-sm font-display font-black text-white leading-none">
+                    <span>2</span><span className="text-white/20">-</span><span>1</span>
+                </div>
+                <div className="text-[6px] font-display font-bold text-neon-emerald tracking-widest">45:00</div>
+            </div>
+            <div className="flex-1 flex items-center justify-start bg-slate-900/90 pl-1 pr-2 gap-1 relative border-r-2" style={{ borderColor: awayColor }}>
+                <span className="text-white/80 font-display font-bold text-[10px] tracking-tighter">AWAY</span>
+            </div>
+        </div>
+    </div>
+  );
+};
 
 const SetupScreen: React.FC<SetupScreenProps> = ({ onSetupComplete, onLoadMatch, onLogout }) => {
   const [homeTeamName, setHomeTeamName] = useState('Fonteyn FC');
@@ -265,9 +348,10 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onSetupComplete, onLoadMatch,
   const weatherOptions: WeatherCondition[] = ['Clear', 'Cloudy', 'Rain', 'Snow', 'Windy'];
   
   const templates = [
-      { id: 'default', name: 'Classic', isPro: false, image: 'https://i.imgur.com/L4N2XCL.png' },
-      { id: 'minimal', name: 'Minimal', isPro: true, image: 'https://i.imgur.com/Fqk3qYh.png' },
-      { id: 'broadcast', name: 'Broadcast', isPro: true, image: 'https://i.imgur.com/gK98h8v.png' },
+      { id: 'default', name: 'Classic', isPro: false },
+      { id: 'minimal', name: 'Minimal', isPro: true },
+      { id: 'broadcast', name: 'Broadcast', isPro: true },
+      { id: 'retro', name: 'Retro', isPro: false },
   ];
 
   const commentaryStyles: { id: CommentaryStyle, name: string }[] = [
@@ -354,80 +438,132 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onSetupComplete, onLoadMatch,
     <button
       type="button"
       onClick={onClick}
-      className={`px-4 md:px-6 py-3 font-semibold text-sm md:text-base border-b-4 transition-colors focus:outline-none ${
+      className={`relative px-4 md:px-8 py-4 font-display font-black text-xs md:text-sm uppercase tracking-[0.3em] transition-all focus:outline-none group ${
         isActive
-          ? 'border-green-500 text-white'
-          : 'border-transparent text-gray-400 hover:text-white'
+          ? 'text-neon-cyan'
+          : 'text-white/30 hover:text-white/60'
       }`}
     >
       {label}
+      <div className={`absolute bottom-0 left-0 w-full h-0.5 bg-neon-cyan transition-all duration-300 ${isActive ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0 group-hover:opacity-30 group-hover:scale-x-50'}`} />
+      {isActive && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-4 bg-neon-cyan/20 blur-md rounded-full" />}
     </button>
   );
 
   if (isLoading) {
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-4">
-            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-white mt-4">Checking for saved data...</p>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 p-4 relative overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-cyan/10 blur-[120px] rounded-full" />
+              <div className="scanline opacity-20" />
+            </div>
+            <div className="relative">
+              <div className="w-24 h-24 border-4 border-neon-cyan/20 border-t-neon-cyan rounded-full animate-spin shadow-[0_0_20px_rgba(0,243,255,0.2)]"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-12 h-12 border-4 border-neon-emerald/20 border-b-neon-emerald rounded-full animate-spin-slow"></div>
+              </div>
+            </div>
+            <p className="text-neon-cyan font-display font-black uppercase tracking-[0.5em] mt-8 animate-pulse">Initializing Tactical Core...</p>
         </div>
     );
   }
 
   if (!showSetup) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-4 animate-fade-in">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 p-4 animate-fade-in relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-neon-cyan/5 blur-[100px] rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-neon-emerald/5 blur-[100px] rounded-full" />
+          <div className="scanline opacity-10" />
+        </div>
+
         {videoToPlay && (
-            <div className="fixed inset-0 bg-black/80 flex flex-col items-center justify-center z-50" onClick={() => setVideoToPlay(null)}>
-                <div className="w-full max-w-4xl p-4" onClick={e => e.stopPropagation()}>
-                    <video key={videoToPlay.url} src={videoToPlay.url} controls autoPlay className="w-full rounded-lg" onEnded={() => setVideoToPlay(null)} />
-                    <p className="text-white text-center mt-2 truncate">{videoToPlay.name}</p>
+            <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl flex flex-col items-center justify-center z-50 p-4" onClick={() => setVideoToPlay(null)}>
+                <div className="w-full max-w-5xl glass-panel border-white/10 p-4 rounded-[2rem] shadow-2xl relative" onClick={e => e.stopPropagation()}>
+                    <div className="absolute top-4 right-4 z-10">
+                      <button onClick={() => setVideoToPlay(null)} className="p-2 glass-panel border-white/10 bg-white/5 hover:bg-white/10 rounded-full text-white/50 hover:text-white transition-all">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                    <video key={videoToPlay.url} src={videoToPlay.url} controls autoPlay className="w-full rounded-2xl shadow-2xl" onEnded={() => setVideoToPlay(null)} />
+                    <div className="mt-4 flex items-center justify-between px-4">
+                      <p className="text-white font-display font-bold uppercase tracking-widest truncate">{videoToPlay.name}</p>
+                      <p className="text-[10px] font-display font-bold text-white/30 uppercase tracking-[0.3em]">Tactical Playback v2.0</p>
+                    </div>
                 </div>
             </div>
         )}
-        <div className="w-full max-w-md bg-gray-800 rounded-lg shadow-xl p-8 text-center relative">
-            <div className="absolute top-4 right-4">
-                <button onClick={onLogout} className="p-2 bg-gray-700 hover:bg-red-600 rounded-full transition-colors group" title="Logout">
-                    <LogoutIcon className="w-6 h-6"/>
+        <div className="w-full max-w-md glass-panel border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.5)] p-10 text-center relative z-10 rounded-[3rem]">
+            <div className="absolute top-6 right-6">
+                <button onClick={onLogout} className="p-3 glass-panel border-white/10 bg-white/5 hover:bg-neon-yellow/20 hover:border-neon-yellow/50 rounded-full transition-all group" title="Logout">
+                    <LogoutIcon className="w-6 h-6 text-white/50 group-hover:text-neon-yellow transition-colors"/>
                 </button>
             </div>
-          <h1 className="text-5xl font-bold mb-2" style={{ color: '#00e676' }}>BolaVision</h1>
-          <p className="text-gray-400 italic mb-6">“Your Game, Our Vision.”</p>
+          <div className="mb-8">
+            <h1 className="text-6xl font-display font-black text-neon-cyan uppercase tracking-tighter italic leading-none">BolaVision</h1>
+            <p className="text-[10px] font-display font-bold text-white/30 uppercase tracking-[0.6em] mt-2">Neural Tactical Interface</p>
+          </div>
           
           {savedMatch ? (
-            <>
-                <h1 className="text-3xl font-bold text-white mb-4">Saved Match Found!</h1>
-                <p className="text-gray-300 mb-2 truncate">
-                    {savedMatch.homeTeam.name} vs {savedMatch.awayTeam.name}
-                </p>
-                <p className="text-lg font-bold text-yellow-400 mb-6">
-                    {savedMatch.homeStats.goals} - {savedMatch.awayStats.goals} ({Math.floor(savedMatch.matchTime / 60)}' min)
-                </p>
-                <button onClick={handleLoad} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-transform transform hover:scale-105 mb-4">
-                    Load Match
-                </button>
-                <button onClick={handleStartNew} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition">
-                    Start a New Match
-                </button>
-            </>
+            <div className="space-y-6 animate-fade-in">
+                <div className="py-6 border-y border-white/5">
+                  <h2 className="text-xs font-display font-bold text-white/40 uppercase tracking-[0.4em] mb-4">Active Session Detected</h2>
+                  <div className="flex items-center justify-center gap-6">
+                    <div className="text-right flex-1">
+                      <p className="text-lg font-display font-black text-white uppercase truncate">{savedMatch.homeTeam.name}</p>
+                      <div className="h-1 w-full bg-white/5 mt-1 rounded-full overflow-hidden">
+                        <div className="h-full bg-neon-cyan" style={{ width: '100%' }} />
+                      </div>
+                    </div>
+                    <div className="glass-panel border-white/10 px-4 py-2 rounded-2xl">
+                      <span className="text-3xl font-display font-black text-white">{savedMatch.homeStats.goals}</span>
+                      <span className="text-white/20 mx-2 text-xl">-</span>
+                      <span className="text-3xl font-display font-black text-white">{savedMatch.awayStats.goals}</span>
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className="text-lg font-display font-black text-white uppercase truncate">{savedMatch.awayTeam.name}</p>
+                      <div className="h-1 w-full bg-white/5 mt-1 rounded-full overflow-hidden">
+                        <div className="h-full bg-neon-emerald" style={{ width: '100%' }} />
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-display font-bold text-neon-yellow uppercase tracking-[0.3em] mt-4">Match Time: {Math.floor(savedMatch.matchTime / 60)}' MIN</p>
+                </div>
+
+                <div className="space-y-3">
+                  <button onClick={handleLoad} className="w-full glass-panel border-neon-cyan/30 bg-neon-cyan/5 hover:bg-neon-cyan/10 text-neon-cyan font-display font-black py-4 px-6 rounded-2xl text-lg uppercase tracking-[0.2em] transition-all hover:scale-105 hover:border-neon-cyan shadow-[0_0_30px_rgba(0,243,255,0.1)]">
+                      Resume Session
+                  </button>
+                  <button onClick={handleStartNew} className="w-full glass-panel border-white/10 bg-white/5 hover:bg-neon-yellow/10 hover:text-neon-yellow text-white/50 font-display font-bold py-3 px-6 rounded-2xl uppercase tracking-widest transition-all">
+                      Terminate & New Match
+                  </button>
+                </div>
+            </div>
           ) : (
-             <button onClick={() => setShowSetup(true)} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-transform transform hover:scale-105">
-                Start a New Match
+             <button onClick={() => setShowSetup(true)} className="w-full glass-panel border-neon-cyan/30 bg-neon-cyan/5 hover:bg-neon-cyan/10 text-neon-cyan font-display font-black py-5 px-6 rounded-3xl text-xl uppercase tracking-[0.3em] transition-all hover:scale-105 hover:border-neon-cyan shadow-[0_0_40px_rgba(0,243,255,0.1)]">
+                Initialize New Match
             </button>
           )}
         </div>
 
         {savedVideos.length > 0 && (
-            <div className={`w-full max-w-md bg-gray-800 rounded-lg shadow-xl p-6 text-center mt-6 animate-fade-in-up`}>
-                <h2 className="text-2xl font-bold text-white mb-4">My Recordings</h2>
-                <div className="space-y-2 max-h-60 overflow-y-auto text-left">
+            <div className="w-full max-w-md glass-panel border-white/10 shadow-2xl p-8 mt-8 animate-fade-in-up rounded-[2.5rem] relative z-10">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xs font-display font-bold text-white/40 uppercase tracking-[0.5em]">Tactical Archives</h2>
+                  <span className="text-[10px] font-display font-bold text-neon-cyan bg-neon-cyan/10 px-2 py-0.5 rounded border border-neon-cyan/30">{savedVideos.length} UNITS</span>
+                </div>
+                <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-hide pr-1">
                     {savedVideos.map(video => (
-                        <div key={video.id} className="bg-gray-700 p-2 rounded-lg flex items-center justify-between">
-                            <span className="truncate flex-1 mr-2 text-sm">{video.name}</span>
+                        <div key={video.id} className="glass-panel border-white/5 bg-white/5 p-3 rounded-2xl flex items-center justify-between group hover:border-white/20 transition-all">
+                            <div className="flex flex-col flex-1 min-w-0 mr-4">
+                              <span className="text-sm font-display font-bold text-white/80 group-hover:text-white transition-colors truncate uppercase tracking-tight">{video.name}</span>
+                              <span className="text-[8px] font-display font-bold text-white/20 uppercase tracking-widest mt-0.5">MP4 // Tactical Feed</span>
+                            </div>
                             <div className="flex gap-2">
-                                <button onClick={() => handlePlayVideo(video)} className="p-2 bg-blue-600 hover:bg-blue-700 rounded-md" title="Play recording">
+                                <button onClick={() => handlePlayVideo(video)} className="p-2 glass-panel border-neon-cyan/30 bg-neon-cyan/10 hover:bg-neon-cyan/20 rounded-xl text-neon-cyan transition-all" title="Play recording">
                                     <PlayIcon className="w-4 h-4" />
                                 </button>
-                                <button onClick={() => handleDeleteVideo(video.id)} className="p-2 bg-red-600 hover:bg-red-700 rounded-md" title="Delete recording">
+                                <button onClick={() => handleDeleteVideo(video.id)} className="p-2 glass-panel border-neon-yellow/30 bg-neon-yellow/10 hover:bg-neon-yellow/20 rounded-xl text-neon-yellow transition-all" title="Delete recording">
                                     <TrashIcon className="w-4 h-4" />
                                 </button>
                             </div>
@@ -441,347 +577,487 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onSetupComplete, onLoadMatch,
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-900 p-4">
-      <div className="w-full max-w-4xl bg-gray-800 rounded-lg shadow-xl p-8 animate-fade-in relative">
-        <div className="absolute top-4 right-4 flex items-center gap-3 z-10">
+    <div className="flex items-center justify-center min-h-screen bg-slate-950 p-4 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_0%,rgba(0,243,255,0.05)_0%,transparent_50%)]" />
+        <div className="scanline opacity-10" />
+      </div>
+
+      <div className="w-full max-w-5xl glass-panel border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] p-8 md:p-12 animate-fade-in relative z-10 rounded-[3rem]">
+        <div className="absolute top-6 right-6 flex items-center gap-4 z-20">
             <div className="text-right">
-                <p className={`font-bold text-sm ${isPro ? 'text-yellow-400' : 'text-gray-300'}`}>{isPro ? 'PRO' : 'GUEST'}</p>
-                <p className="text-xs text-gray-400">{isPro ? 'pro@bolavision.com' : 'Not Signed In'}</p>
+                <p className={`font-display font-black text-[10px] tracking-[0.2em] ${isPro ? 'text-neon-yellow' : 'text-white/30'}`}>{isPro ? 'ELITE ACCESS' : 'GUEST MODE'}</p>
+                <p className="text-[8px] font-display font-bold text-white/20 uppercase tracking-widest">{isPro ? 'pro@bolavision.ai' : 'Unauthorized'}</p>
             </div>
-            <button onClick={onLogout} className="p-2 bg-gray-700 hover:bg-red-600 rounded-full transition-colors group" title="Logout">
-                <LogoutIcon className="w-6 h-6"/>
+            <button onClick={onLogout} className="p-3 glass-panel border-white/10 bg-white/5 hover:bg-neon-yellow/20 hover:border-neon-yellow/50 rounded-full transition-all group" title="Logout">
+                <LogoutIcon className="w-5 h-5 text-white/40 group-hover:text-neon-yellow transition-colors"/>
             </button>
         </div>
-        <div className="text-center mb-8">
-            <h1 className="text-5xl font-bold" style={{ color: '#00e676' }}>BolaVision</h1>
-            <p className="text-gray-400 italic mt-2">“Your Game, Our Vision.”</p>
+
+        <div className="text-center mb-12">
+            <h1 className="text-5xl md:text-7xl font-display font-black text-white uppercase tracking-tighter italic leading-none">BolaVision</h1>
+            <div className="flex items-center justify-center gap-4 mt-4">
+              <div className="h-px w-12 bg-gradient-to-r from-transparent to-white/20" />
+              <p className="text-[10px] font-display font-bold text-white/30 uppercase tracking-[0.6em]">Neural Tactical Interface v4.0</p>
+              <div className="h-px w-12 bg-gradient-to-l from-transparent to-white/20" />
+            </div>
         </div>
-        <h1 className="text-4xl font-bold text-center text-white mb-8 border-t border-gray-700 pt-6">Match Setup</h1>
+
+        <div className="relative">
+          <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          <h1 className="text-2xl md:text-3xl font-display font-black text-center text-white uppercase tracking-[0.3em] italic mb-10 mt-8">Mission Setup</h1>
+        </div>
+
         <form onSubmit={handleSubmit}>
-          <div className="flex justify-center border-b border-gray-700 mb-8">
-            <TabButton label="Teams & Players" isActive={activeTab === 'teams'} onClick={() => setActiveTab('teams')} />
-            <TabButton label="Match & Officials" isActive={activeTab === 'match'} onClick={() => setActiveTab('match')} />
-            <TabButton label="Broadcast & Style" isActive={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} />
+          <div className="flex justify-center border-b border-white/5 mb-12">
+            <TabButton label="Squad Manifest" isActive={activeTab === 'teams'} onClick={() => setActiveTab('teams')} />
+            <TabButton label="Tactical Parameters" isActive={activeTab === 'match'} onClick={() => setActiveTab('match')} />
+            <TabButton label="Broadcast Protocol" isActive={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} />
           </div>
 
           <div className="min-h-[400px]">
             {activeTab === 'teams' && (
-              <div className="animate-fade-in-fast">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-12 animate-fade-in">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                   {/* Home Team */}
-                  <div className="flex flex-col gap-4 bg-gray-700 p-6 rounded-lg">
-                    <div className="flex items-start gap-4 border-b border-gray-600 pb-4">
-                        <div className="flex flex-col items-center gap-1 w-24 flex-shrink-0">
-                            <label htmlFor="homeTeamLogoInput" className="cursor-pointer bg-gray-800 border-2 border-dashed border-gray-600 rounded-lg w-24 h-24 flex items-center justify-center text-center text-gray-400 hover:bg-gray-900 hover:border-green-500 transition">
+                  <div className="glass-panel border-white/10 p-8 rounded-[2rem] relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-neon-cyan/50" />
+                    <div className="flex items-center justify-between mb-8">
+                      <h2 className="text-xl font-display font-black text-white uppercase tracking-widest italic">Home Squad</h2>
+                      <div className="w-10 h-10 rounded-full bg-neon-cyan/10 border border-neon-cyan/30 flex items-center justify-center text-neon-cyan font-display font-black">H</div>
+                    </div>
+                    
+                    <div className="space-y-6">
+                      <div className="flex items-start gap-6">
+                        <div className="flex flex-col items-center gap-2 w-28 flex-shrink-0">
+                            <label htmlFor="homeTeamLogoInput" className="cursor-pointer glass-panel border-2 border-dashed border-white/10 rounded-2xl w-28 h-28 flex items-center justify-center text-center text-white/30 hover:bg-white/5 hover:border-neon-cyan transition-all group/logo">
                               {homeTeamLogo ? (
-                                <img src={homeTeamLogo} alt="Home Team Logo" className="w-full h-full object-contain p-1" />
+                                <img src={homeTeamLogo} alt="Home Team Logo" className="w-full h-full object-contain p-2" />
                               ) : (
-                                <span className="text-xs px-1">Click to Upload Logo</span>
+                                <div className="flex flex-col items-center gap-1">
+                                    <svg className="w-6 h-6 opacity-30 group-hover/logo:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    <span className="text-[8px] font-display font-bold uppercase tracking-widest">Upload Logo</span>
+                                </div>
                               )}
                             </label>
                             <input id="homeTeamLogoInput" type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, setHomeTeamLogo)} />
-                            {homeTeamLogo ? 
-                                <button type="button" onClick={() => setHomeTeamLogo('')} className="text-red-400 hover:text-red-600 text-xs font-bold h-5">Remove</button>
-                                : <div className="h-5"></div>
-                            }
+                            {homeTeamLogo && (
+                                <button type="button" onClick={() => setHomeTeamLogo('')} className="text-neon-yellow hover:text-white text-[8px] font-display font-bold uppercase tracking-widest transition-colors">Remove</button>
+                            )}
                         </div>
                         <div className="flex-1 space-y-4">
-                            <h2 className="text-2xl font-semibold" style={{ color: homeTeamColor }}>Home Team</h2>
-                            <div>
-                              <label htmlFor="homeTeamName" className="block text-sm font-medium text-gray-300 mb-1">Team Name</label>
-                              <input type="text" id="homeTeamName" value={homeTeamName} onChange={(e) => setHomeTeamName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': homeTeamColor} as React.CSSProperties} required />
+                            <div className="space-y-1">
+                              <label htmlFor="homeTeamName" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Team Designation</label>
+                              <input type="text" id="homeTeamName" value={homeTeamName} onChange={(e) => setHomeTeamName(e.target.value)} 
+                                className="w-full glass-panel border-white/10 bg-white/5 rounded-xl p-3 text-white font-display font-bold uppercase tracking-widest focus:border-neon-cyan transition-all outline-none" required />
                             </div>
-                            <div>
-                              <label htmlFor="homeCoachName" className="block text-sm font-medium text-gray-300 mb-1">Coach Name</label>
-                              <input type="text" id="homeCoachName" value={homeCoachName} onChange={(e) => setHomeCoachName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': homeTeamColor} as React.CSSProperties} />
+                            <div className="space-y-1">
+                              <label htmlFor="homeCoachName" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Tactical Lead</label>
+                              <input type="text" id="homeCoachName" value={homeCoachName} onChange={(e) => setHomeCoachName(e.target.value)} 
+                                className="w-full glass-panel border-white/10 bg-white/5 rounded-xl p-3 text-white font-display font-bold uppercase tracking-widest focus:border-neon-cyan transition-all outline-none" />
                             </div>
                         </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="homeTeamColor" className="block text-sm font-medium text-gray-300 mb-1">Team Color</label>
-                        <input type="color" id="homeTeamColor" value={homeTeamColor} onChange={(e) => setHomeTeamColor(e.target.value)} className="w-full h-10 p-1 bg-gray-800 border border-gray-600 rounded-md cursor-pointer" />
                       </div>
-                      <div>
-                        <label htmlFor="homeFormation" className="block text-sm font-medium text-gray-300 mb-1">Formation</label>
-                        <select id="homeFormation" value={homeFormation} onChange={(e) => setHomeFormation(e.target.value)} className="w-full h-10 bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': homeTeamColor} as React.CSSProperties}>
-                          {formations.map(f => <option key={f} value={f}>{f}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-200 mt-2 mb-2">Player Roster</h3>
-                      <div className="space-y-2 max-h-32 overflow-y-auto pr-2 rounded bg-gray-800/50 p-2">
-                          {homePlayers.length === 0 && <p className="text-gray-400 text-sm text-center">No players added.</p>}
-                          {homePlayers.map(player => (
-                              <div key={player.number} className="flex items-center justify-between bg-gray-900 p-2 rounded text-sm">
-                                  <div className="flex items-center gap-2">
-                                      <label htmlFor={`photo-upload-home-${player.number}`} className="cursor-pointer group relative">
-                                          {player.photo ? (
-                                              <img src={player.photo} alt={player.name} className="w-8 h-8 rounded-full object-cover bg-gray-700" />
-                                          ) : (
-                                              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-gray-400">
-                                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13 8V0H7v8H0v2h7v10h6V10h7V8h-7z"/></svg>
-                                              </div>
-                                          )}
-                                          <input id={`photo-upload-home-${player.number}`} type="file" accept="image/*" className="hidden" onChange={(e) => handlePlayerPhotoUpload(e, 'home', player.number)} />
-                                          <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                                          </div>
-                                      </label>
-                                      <span className="font-semibold text-gray-300">#{player.number}</span>
-                                      <span className="truncate">{player.name}</span>
-                                  </div>
-                                  <button type="button" onClick={() => handleRemovePlayer('home', player.number)} className="text-red-400 hover:text-red-600 font-bold">&times;</button>
-                              </div>
-                          ))}
-                      </div>
-                      <div className="mt-3 flex gap-2 items-end">
-                          <input type="number" placeholder="#" value={newHomePlayerNumber} onChange={(e) => setNewHomePlayerNumber(e.target.value)} className="w-14 bg-gray-800 border border-gray-600 rounded-md p-2 text-white" />
-                          <input type="text" placeholder="Player Name" value={newHomePlayerName} onChange={(e) => setNewHomePlayerName(e.target.value)} className="flex-1 bg-gray-800 border border-gray-600 rounded-md p-2 text-white" />
-                          <select value={newHomePlayerRole} onChange={e => setNewHomePlayerRole(e.target.value as Player['role'])} className="bg-gray-800 border border-gray-600 rounded-md p-2 text-white">
-                            {roles.map(r => <option key={r} value={r}>{r}</option>)}
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label htmlFor="homeTeamColor" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Primary Color</label>
+                          <div className="flex items-center gap-3 glass-panel border-white/10 bg-white/5 p-2 rounded-xl">
+                            <input type="color" id="homeTeamColor" value={homeTeamColor} onChange={(e) => setHomeTeamColor(e.target.value)} className="w-10 h-10 bg-transparent border-none cursor-pointer rounded-lg overflow-hidden" />
+                            <span className="font-mono text-[10px] text-white/60 uppercase">{homeTeamColor}</span>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor="homeFormation" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Tactical Grid</label>
+                          <select id="homeFormation" value={homeFormation} onChange={(e) => setHomeFormation(e.target.value)} 
+                            className="w-full h-14 glass-panel border-white/10 bg-white/5 rounded-xl p-3 text-white font-display font-bold focus:border-neon-cyan transition-all outline-none appearance-none cursor-pointer">
+                            {formations.map(f => <option key={f} value={f} className="bg-slate-900">{f}</option>)}
                           </select>
-                          <button type="button" onClick={() => handleAddPlayer('home')} className="bg-green-600 hover:bg-green-700 p-2 rounded-md font-bold">+</button>
+                        </div>
                       </div>
-                      {homePlayerError && <p className="text-red-400 text-xs mt-1">{homePlayerError}</p>}
+
+                      <div className="pt-6 border-t border-white/5">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-xs font-display font-bold text-white/60 uppercase tracking-widest">Active Roster</h3>
+                          <span className="text-[10px] font-mono text-neon-cyan">{homePlayers.length} UNITS</span>
+                        </div>
+                        <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-hide pr-1">
+                          {homePlayers.length === 0 && <p className="text-white/20 text-[10px] font-display font-bold uppercase tracking-widest text-center py-4">No units deployed</p>}
+                          {homePlayers.map(player => (
+                            <div key={player.number} className="flex items-center justify-between glass-panel border-white/5 bg-white/5 p-2 px-4 rounded-xl group/item hover:border-neon-cyan/30 transition-all">
+                              <div className="flex items-center gap-3">
+                                <label htmlFor={`photo-upload-home-${player.number}`} className="cursor-pointer group/photo relative">
+                                    {player.photo ? (
+                                        <img src={player.photo} alt={player.name} className="w-8 h-8 rounded-full object-cover border border-white/10" />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/20 group-hover/photo:text-neon-cyan transition-colors">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                        </div>
+                                    )}
+                                    <input id={`photo-upload-home-${player.number}`} type="file" accept="image/*" className="hidden" onChange={(e) => handlePlayerPhotoUpload(e, 'home', player.number)} />
+                                </label>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-mono font-bold text-neon-cyan tracking-tighter">#{player.number}</span>
+                                    <span className="text-sm font-display font-black text-white/80 uppercase tracking-tight truncate max-w-[120px]">{player.name}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-[8px] font-display font-bold text-white/30 uppercase tracking-widest">{player.role}</span>
+                                <button type="button" onClick={() => handleRemovePlayer('home', player.number)} className="opacity-0 group-hover/item:opacity-100 p-1.5 hover:bg-neon-yellow/20 rounded-lg text-neon-yellow transition-all">
+                                    <TrashIcon className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div className="mt-6 grid grid-cols-12 gap-2">
+                          <input type="number" placeholder="#" value={newHomePlayerNumber} onChange={(e) => setNewHomePlayerNumber(e.target.value)} className="col-span-2 glass-panel border-white/10 bg-white/5 rounded-xl p-3 text-xs text-white outline-none focus:border-neon-cyan transition-all font-mono" />
+                          <input type="text" placeholder="Unit Name" value={newHomePlayerName} onChange={(e) => setNewHomePlayerName(e.target.value)} className="col-span-4 glass-panel border-white/10 bg-white/5 rounded-xl p-3 text-xs text-white outline-none focus:border-neon-cyan transition-all font-display font-bold uppercase" />
+                          <select value={newHomePlayerRole} onChange={e => setNewHomePlayerRole(e.target.value as Player['role'])} className="col-span-4 glass-panel border-white/10 bg-white/5 rounded-xl p-3 text-[10px] text-white outline-none focus:border-neon-cyan transition-all font-display font-bold uppercase appearance-none cursor-pointer">
+                            {roles.map(r => <option key={r} value={r} className="bg-slate-900">{r}</option>)}
+                          </select>
+                          <button type="button" onClick={() => handleAddPlayer('home')} className="col-span-2 glass-panel border-neon-cyan/30 bg-neon-cyan/10 hover:bg-neon-cyan/20 text-neon-cyan flex items-center justify-center rounded-xl transition-all">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                          </button>
+                        </div>
+                        {homePlayerError && <p className="text-neon-yellow text-[8px] font-display font-bold uppercase tracking-widest mt-2 ml-1">{homePlayerError}</p>}
+                      </div>
                     </div>
                   </div>
 
                   {/* Away Team */}
-                  <div className="flex flex-col gap-4 bg-gray-700 p-6 rounded-lg">
-                    <div className="flex items-start gap-4 border-b border-gray-600 pb-4">
-                        <div className="flex flex-col items-center gap-1 w-24 flex-shrink-0">
-                            <label htmlFor="awayTeamLogoInput" className="cursor-pointer bg-gray-800 border-2 border-dashed border-gray-600 rounded-lg w-24 h-24 flex items-center justify-center text-center text-gray-400 hover:bg-gray-900 hover:border-green-500 transition">
+                  <div className="glass-panel border-white/10 p-8 rounded-[2rem] relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-neon-emerald/50" />
+                    <div className="flex items-center justify-between mb-8">
+                      <h2 className="text-xl font-display font-black text-white uppercase tracking-widest italic">Away Squad</h2>
+                      <div className="w-10 h-10 rounded-full bg-neon-emerald/10 border border-neon-emerald/30 flex items-center justify-center text-neon-emerald font-display font-black">A</div>
+                    </div>
+                    
+                    <div className="space-y-6">
+                      <div className="flex items-start gap-6">
+                        <div className="flex flex-col items-center gap-2 w-28 flex-shrink-0">
+                            <label htmlFor="awayTeamLogoInput" className="cursor-pointer glass-panel border-2 border-dashed border-white/10 rounded-2xl w-28 h-28 flex items-center justify-center text-center text-white/30 hover:bg-white/5 hover:border-neon-emerald transition-all group/logo">
                               {awayTeamLogo ? (
-                                <img src={awayTeamLogo} alt="Away Team Logo" className="w-full h-full object-contain p-1" />
+                                <img src={awayTeamLogo} alt="Away Team Logo" className="w-full h-full object-contain p-2" />
                               ) : (
-                                <span className="text-xs px-1">Click to Upload Logo</span>
+                                <div className="flex flex-col items-center gap-1">
+                                    <svg className="w-6 h-6 opacity-30 group-hover/logo:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    <span className="text-[8px] font-display font-bold uppercase tracking-widest">Upload Logo</span>
+                                </div>
                               )}
                             </label>
                             <input id="awayTeamLogoInput" type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, setAwayTeamLogo)} />
-                            {awayTeamLogo ? 
-                                <button type="button" onClick={() => setAwayTeamLogo('')} className="text-red-400 hover:text-red-600 text-xs font-bold h-5">Remove</button>
-                                : <div className="h-5"></div>
-                            }
+                            {awayTeamLogo && (
+                                <button type="button" onClick={() => setAwayTeamLogo('')} className="text-neon-yellow hover:text-white text-[8px] font-display font-bold uppercase tracking-widest transition-colors">Remove</button>
+                            )}
                         </div>
                         <div className="flex-1 space-y-4">
-                            <h2 className="text-2xl font-semibold" style={{ color: awayTeamColor }}>Away Team</h2>
-                            <div>
-                              <label htmlFor="awayTeamName" className="block text-sm font-medium text-gray-300 mb-1">Team Name</label>
-                              <input type="text" id="awayTeamName" value={awayTeamName} onChange={(e) => setAwayTeamName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': awayTeamColor} as React.CSSProperties} required />
+                            <div className="space-y-1">
+                              <label htmlFor="awayTeamName" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Team Designation</label>
+                              <input type="text" id="awayTeamName" value={awayTeamName} onChange={(e) => setAwayTeamName(e.target.value)} 
+                                className="w-full glass-panel border-white/10 bg-white/5 rounded-xl p-3 text-white font-display font-bold uppercase tracking-widest focus:border-neon-emerald transition-all outline-none" required />
                             </div>
-                            <div>
-                              <label htmlFor="awayCoachName" className="block text-sm font-medium text-gray-300 mb-1">Coach Name</label>
-                              <input type="text" id="awayCoachName" value={awayCoachName} onChange={(e) => setAwayCoachName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': awayTeamColor} as React.CSSProperties} />
+                            <div className="space-y-1">
+                              <label htmlFor="awayCoachName" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Tactical Lead</label>
+                              <input type="text" id="awayCoachName" value={awayCoachName} onChange={(e) => setAwayCoachName(e.target.value)} 
+                                className="w-full glass-panel border-white/10 bg-white/5 rounded-xl p-3 text-white font-display font-bold uppercase tracking-widest focus:border-neon-emerald transition-all outline-none" />
                             </div>
                         </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="awayTeamColor" className="block text-sm font-medium text-gray-300 mb-1">Team Color</label>
-                        <input type="color" id="awayTeamColor" value={awayTeamColor} onChange={(e) => setAwayTeamColor(e.target.value)} className="w-full h-10 p-1 bg-gray-800 border border-gray-600 rounded-md cursor-pointer" />
                       </div>
-                      <div>
-                        <label htmlFor="awayFormation" className="block text-sm font-medium text-gray-300 mb-1">Formation</label>
-                        <select id="awayFormation" value={awayFormation} onChange={(e) => setAwayFormation(e.target.value)} className="w-full h-10 bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2" style={{'--tw-ring-color': awayTeamColor} as React.CSSProperties}>
-                          {formations.map(f => <option key={f} value={f}>{f}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-200 mt-2 mb-2">Player Roster</h3>
-                      <div className="space-y-2 max-h-32 overflow-y-auto pr-2 rounded bg-gray-800/50 p-2">
-                          {awayPlayers.length === 0 && <p className="text-gray-400 text-sm text-center">No players added.</p>}
-                          {awayPlayers.map(player => (
-                              <div key={player.number} className="flex items-center justify-between bg-gray-900 p-2 rounded text-sm">
-                                  <div className="flex items-center gap-2">
-                                      <label htmlFor={`photo-upload-away-${player.number}`} className="cursor-pointer group relative">
-                                          {player.photo ? (
-                                              <img src={player.photo} alt={player.name} className="w-8 h-8 rounded-full object-cover bg-gray-700" />
-                                          ) : (
-                                              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-gray-400">
-                                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13 8V0H7v8H0v2h7v10h6V10h7V8h-7z"/></svg>
-                                              </div>
-                                          )}
-                                          <input id={`photo-upload-away-${player.number}`} type="file" accept="image/*" className="hidden" onChange={(e) => handlePlayerPhotoUpload(e, 'away', player.number)} />
-                                          <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                                          </div>
-                                      </label>
-                                      <span className="font-semibold text-gray-300">#{player.number}</span>
-                                      <span className="truncate">{player.name}</span>
-                                  </div>
-                                  <button type="button" onClick={() => handleRemovePlayer('away', player.number)} className="text-red-400 hover:text-red-600 font-bold">&times;</button>
-                              </div>
-                          ))}
-                      </div>
-                      <div className="mt-3 flex gap-2 items-end">
-                          <input type="number" placeholder="#" value={newAwayPlayerNumber} onChange={(e) => setNewAwayPlayerNumber(e.target.value)} className="w-14 bg-gray-800 border border-gray-600 rounded-md p-2 text-white" />
-                          <input type="text" placeholder="Player Name" value={newAwayPlayerName} onChange={(e) => setNewAwayPlayerName(e.target.value)} className="flex-1 bg-gray-800 border border-gray-600 rounded-md p-2 text-white" />
-                          <select value={newAwayPlayerRole} onChange={e => setNewAwayPlayerRole(e.target.value as Player['role'])} className="bg-gray-800 border border-gray-600 rounded-md p-2 text-white">
-                            {roles.map(r => <option key={r} value={r}>{r}</option>)}
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label htmlFor="awayTeamColor" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Primary Color</label>
+                          <div className="flex items-center gap-3 glass-panel border-white/10 bg-white/5 p-2 rounded-xl">
+                            <input type="color" id="awayTeamColor" value={awayTeamColor} onChange={(e) => setAwayTeamColor(e.target.value)} className="w-10 h-10 bg-transparent border-none cursor-pointer rounded-lg overflow-hidden" />
+                            <span className="font-mono text-[10px] text-white/60 uppercase">{awayTeamColor}</span>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor="awayFormation" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Tactical Grid</label>
+                          <select id="awayFormation" value={awayFormation} onChange={(e) => setAwayFormation(e.target.value)} 
+                            className="w-full h-14 glass-panel border-white/10 bg-white/5 rounded-xl p-3 text-white font-display font-bold focus:border-neon-emerald transition-all outline-none appearance-none cursor-pointer">
+                            {formations.map(f => <option key={f} value={f} className="bg-slate-900">{f}</option>)}
                           </select>
-                          <button type="button" onClick={() => handleAddPlayer('away')} className="bg-green-600 hover:bg-green-700 p-2 rounded-md font-bold">+</button>
+                        </div>
                       </div>
-                      {awayPlayerError && <p className="text-red-400 text-xs mt-1">{awayPlayerError}</p>}
+
+                      <div className="pt-6 border-t border-white/5">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-xs font-display font-bold text-white/60 uppercase tracking-widest">Active Roster</h3>
+                          <span className="text-[10px] font-mono text-neon-emerald">{awayPlayers.length} UNITS</span>
+                        </div>
+                        <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-hide pr-1">
+                          {awayPlayers.length === 0 && <p className="text-white/20 text-[10px] font-display font-bold uppercase tracking-widest text-center py-4">No units deployed</p>}
+                          {awayPlayers.map(player => (
+                            <div key={player.number} className="flex items-center justify-between glass-panel border-white/5 bg-white/5 p-2 px-4 rounded-xl group/item hover:border-neon-emerald/30 transition-all">
+                              <div className="flex items-center gap-3">
+                                <label htmlFor={`photo-upload-away-${player.number}`} className="cursor-pointer group/photo relative">
+                                    {player.photo ? (
+                                        <img src={player.photo} alt={player.name} className="w-8 h-8 rounded-full object-cover border border-white/10" />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/20 group-hover/photo:text-neon-emerald transition-colors">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                        </div>
+                                    )}
+                                    <input id={`photo-upload-away-${player.number}`} type="file" accept="image/*" className="hidden" onChange={(e) => handlePlayerPhotoUpload(e, 'away', player.number)} />
+                                </label>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-mono font-bold text-neon-emerald tracking-tighter">#{player.number}</span>
+                                    <span className="text-sm font-display font-black text-white/80 uppercase tracking-tight truncate max-w-[120px]">{player.name}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-[8px] font-display font-bold text-white/30 uppercase tracking-widest">{player.role}</span>
+                                <button type="button" onClick={() => handleRemovePlayer('away', player.number)} className="opacity-0 group-hover/item:opacity-100 p-1.5 hover:bg-neon-yellow/20 rounded-lg text-neon-yellow transition-all">
+                                    <TrashIcon className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div className="mt-6 grid grid-cols-12 gap-2">
+                          <input type="number" placeholder="#" value={newAwayPlayerNumber} onChange={(e) => setNewAwayPlayerNumber(e.target.value)} className="col-span-2 glass-panel border-white/10 bg-white/5 rounded-xl p-3 text-xs text-white outline-none focus:border-neon-emerald transition-all font-mono" />
+                          <input type="text" placeholder="Unit Name" value={newAwayPlayerName} onChange={(e) => setNewAwayPlayerName(e.target.value)} className="col-span-4 glass-panel border-white/10 bg-white/5 rounded-xl p-3 text-xs text-white outline-none focus:border-neon-emerald transition-all font-display font-bold uppercase" />
+                          <select value={newAwayPlayerRole} onChange={e => setNewAwayPlayerRole(e.target.value as Player['role'])} className="col-span-4 glass-panel border-white/10 bg-white/5 rounded-xl p-3 text-[10px] text-white outline-none focus:border-neon-emerald transition-all font-display font-bold uppercase appearance-none cursor-pointer">
+                            {roles.map(r => <option key={r} value={r} className="bg-slate-900">{r}</option>)}
+                          </select>
+                          <button type="button" onClick={() => handleAddPlayer('away')} className="col-span-2 glass-panel border-neon-emerald/30 bg-neon-emerald/10 hover:bg-neon-emerald/20 text-neon-emerald flex items-center justify-center rounded-xl transition-all">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                          </button>
+                        </div>
+                        {awayPlayerError && <p className="text-neon-yellow text-[8px] font-display font-bold uppercase tracking-widest mt-2 ml-1">{awayPlayerError}</p>}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             )}
             {activeTab === 'match' && (
-              <div className="animate-fade-in-fast grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4 bg-gray-700 p-6 rounded-lg">
-                  <h3 className="text-xl font-semibold text-white">Match Details</h3>
-                  <div>
-                    <label htmlFor="leagueName" className="block text-sm font-medium text-gray-300 mb-1">League Name</label>
-                    <input type="text" id="leagueName" value={leagueName} onChange={(e) => setLeagueName(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
-                  </div>
-                  <div>
-                    <label htmlFor="venue" className="block text-sm font-medium text-gray-300 mb-1">Venue</label>
-                    <input type="text" id="venue" value={venue} onChange={(e) => setVenue(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="matchDate" className="block text-sm font-medium text-gray-300 mb-1">Match Date</label>
-                      <input type="date" id="matchDate" value={matchDate} onChange={(e) => setMatchDate(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
+              <div className="animate-fade-in space-y-10">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                  <div className="glass-panel border-white/10 p-8 rounded-[2rem] relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-neon-cyan/50" />
+                    <h3 className="text-xl font-display font-black text-white uppercase tracking-widest italic mb-8">Match Parameters</h3>
+                    <div className="space-y-6">
+                      <div className="space-y-1">
+                        <label htmlFor="leagueName" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">League Designation</label>
+                        <input type="text" id="leagueName" value={leagueName} onChange={(e) => setLeagueName(e.target.value)} 
+                          className="w-full glass-panel border-white/10 bg-white/5 rounded-xl p-4 text-white font-display font-bold uppercase tracking-widest focus:border-neon-cyan transition-all outline-none" />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="venue" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Tactical Venue</label>
+                        <input type="text" id="venue" value={venue} onChange={(e) => setVenue(e.target.value)} 
+                          className="w-full glass-panel border-white/10 bg-white/5 rounded-xl p-4 text-white font-display font-bold uppercase tracking-widest focus:border-neon-cyan transition-all outline-none" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label htmlFor="matchDate" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Deployment Date</label>
+                          <input type="date" id="matchDate" value={matchDate} onChange={(e) => setMatchDate(e.target.value)} 
+                            className="w-full glass-panel border-white/10 bg-white/5 rounded-xl p-4 text-white font-mono text-xs focus:border-neon-cyan transition-all outline-none appearance-none" />
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor="matchTime" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Sync Time</label>
+                          <input type="time" id="matchTime" value={matchTimeOfDay} onChange={(e) => setMatchTimeOfDay(e.target.value)} 
+                            className="w-full glass-panel border-white/10 bg-white/5 rounded-xl p-4 text-white font-mono text-xs focus:border-neon-cyan transition-all outline-none appearance-none" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label htmlFor="weather" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Atmospheric Condition</label>
+                          <select id="weather" value={weather} onChange={(e) => setWeather(e.target.value as WeatherCondition)} 
+                            className="w-full h-14 glass-panel border-white/10 bg-white/5 rounded-xl p-3 text-white font-display font-bold focus:border-neon-cyan transition-all outline-none appearance-none cursor-pointer">
+                            {weatherOptions.map(w => <option key={w} value={w} className="bg-slate-900">{w}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor="matchType" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Operation Type</label>
+                          <select id="matchType" value={matchType} onChange={(e) => setMatchType(e.target.value as 'league' | 'knockout')} 
+                            className="w-full h-14 glass-panel border-white/10 bg-white/5 rounded-xl p-3 text-white font-display font-bold focus:border-neon-cyan transition-all outline-none appearance-none cursor-pointer">
+                            <option value="league" className="bg-slate-900">LEAGUE</option>
+                            <option value="knockout" className="bg-slate-900">KNOCKOUT</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label htmlFor="matchTime" className="block text-sm font-medium text-gray-300 mb-1">Time of Day</label>
-                      <input type="time" id="matchTime" value={matchTimeOfDay} onChange={(e) => setMatchTimeOfDay(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
+                  </div>
+
+                  <div className="glass-panel border-white/10 p-8 rounded-[2rem] relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-neon-emerald/50" />
+                    <h3 className="text-xl font-display font-black text-white uppercase tracking-widest italic mb-8">Field Officials</h3>
+                    <div className="space-y-6">
+                      <div className="space-y-1">
+                        <label htmlFor="referee" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Chief Arbiter</label>
+                        <input type="text" id="referee" value={officials.referee} onChange={(e) => setOfficials(o => ({ ...o, referee: e.target.value }))} 
+                          className="w-full glass-panel border-white/10 bg-white/5 rounded-xl p-4 text-white font-display font-bold uppercase tracking-widest focus:border-neon-emerald transition-all outline-none" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label htmlFor="ar1" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Arbiter Alpha</label>
+                          <input type="text" id="ar1" value={officials.ar1} onChange={(e) => setOfficials(o => ({ ...o, ar1: e.target.value }))} 
+                            className="w-full glass-panel border-white/10 bg-white/5 rounded-xl p-4 text-white font-display font-bold uppercase tracking-widest focus:border-neon-emerald transition-all outline-none" />
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor="ar2" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Arbiter Beta</label>
+                          <input type="text" id="ar2" value={officials.ar2} onChange={(e) => setOfficials(o => ({ ...o, ar2: e.target.value }))} 
+                            className="w-full glass-panel border-white/10 bg-white/5 rounded-xl p-4 text-white font-display font-bold uppercase tracking-widest focus:border-neon-emerald transition-all outline-none" />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="fourth" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Reserve Arbiter</label>
+                        <input type="text" id="fourth" value={officials.fourth} onChange={(e) => setOfficials(o => ({ ...o, fourth: e.target.value }))} 
+                          className="w-full glass-panel border-white/10 bg-white/5 rounded-xl p-4 text-white font-display font-bold uppercase tracking-widest focus:border-neon-emerald transition-all outline-none" />
+                      </div>
                     </div>
-                  </div>
-                   <div>
-                    <label htmlFor="weather" className="block text-sm font-medium text-gray-300 mb-1">Weather Condition</label>
-                    <select id="weather" value={weather} onChange={(e) => setWeather(e.target.value as WeatherCondition)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500">
-                        {weatherOptions.map(w => <option key={w} value={w}>{w}</option>)}
-                    </select>
-                  </div>
-                   <div>
-                    <label htmlFor="matchType" className="block text-sm font-medium text-gray-300 mb-1">Match Type</label>
-                    <select id="matchType" value={matchType} onChange={(e) => setMatchType(e.target.value as 'league' | 'knockout')} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500">
-                        <option value="league">League</option>
-                        <option value="knockout">Knockout</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="space-y-4 bg-gray-700 p-6 rounded-lg">
-                   <h3 className="text-xl font-semibold text-white">Match Officials</h3>
-                   <div>
-                    <label htmlFor="referee" className="block text-sm font-medium text-gray-300 mb-1">Referee</label>
-                    <input type="text" id="referee" value={officials.referee} onChange={(e) => setOfficials(o => ({ ...o, referee: e.target.value }))} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
-                  </div>
-                  <div>
-                    <label htmlFor="ar1" className="block text-sm font-medium text-gray-300 mb-1">Assistant Referee 1</label>
-                    <input type="text" id="ar1" value={officials.ar1} onChange={(e) => setOfficials(o => ({ ...o, ar1: e.target.value }))} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
-                  </div>
-                  <div>
-                    <label htmlFor="ar2" className="block text-sm font-medium text-gray-300 mb-1">Assistant Referee 2</label>
-                    <input type="text" id="ar2" value={officials.ar2} onChange={(e) => setOfficials(o => ({ ...o, ar2: e.target.value }))} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
-                  </div>
-                  <div>
-                    <label htmlFor="fourth" className="block text-sm font-medium text-gray-300 mb-1">Fourth Official</label>
-                    <input type="text" id="fourth" value={officials.fourth} onChange={(e) => setOfficials(o => ({ ...o, fourth: e.target.value }))} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-green-500" />
                   </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'broadcast' && (
-              <div className="animate-fade-in-fast space-y-8">
-                <div className="bg-gray-700 p-6 rounded-lg">
-                    <h3 className="text-xl font-semibold text-white mb-4">Scoreboard Template</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {templates.map(template => (
-                            <div key={template.id} onClick={() => handleTemplateSelect(template.id, template.isPro)}
-                                className={`relative border-4 rounded-lg overflow-hidden cursor-pointer transition-all ${selectedTemplate === template.id ? 'border-green-500' : 'border-transparent hover:border-green-400'}`}>
-                                <img src={template.image} alt={`${template.name} template`} className="w-full h-auto object-contain" />
-                                <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-2 py-1 text-center">
-                                    <span className="font-semibold">{template.name}</span>
-                                    {template.isPro && <span className="text-yellow-400 ml-2 font-bold">PRO</span>}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+              <div className="animate-fade-in space-y-10">
+                <div className="glass-panel border-white/10 p-8 rounded-[2rem] relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-neon-cyan/50" />
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-xl font-display font-black text-white uppercase tracking-widest italic">Scoreboard Interface</h3>
+                    <span className="text-[10px] font-mono text-neon-cyan uppercase tracking-widest">Select Visual Overlay</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {templates.map(template => (
+                      <div key={template.id} onClick={() => handleTemplateSelect(template.id, template.isPro)}
+                        className={`relative glass-panel border-2 rounded-2xl overflow-hidden cursor-pointer transition-all group ${selectedTemplate === template.id ? 'border-neon-cyan bg-neon-cyan/10 shadow-[0_0_30px_rgba(0,255,255,0.2)]' : 'border-white/5 hover:border-white/20 bg-white/5'}`}>
+                        
+                        <div className="h-40 w-full relative flex items-center justify-center overflow-hidden">
+                          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-black group-hover:from-slate-800 transition-all">
+                            <div className="absolute top-1/2 left-0 right-0 h-px bg-white/5" />
+                            <div className="absolute top-0 bottom-0 left-1/2 w-px bg-white/5" />
+                          </div>
+                          
+                          <div className="scale-75 origin-center transition-transform group-hover:scale-90 relative z-10">
+                            <TemplatePreview id={template.id} />
+                          </div>
+                        </div>
+
+                        <div className="p-4 flex items-center justify-between border-t border-white/5 bg-black/40">
+                          <span className="text-xs font-display font-bold text-white uppercase tracking-widest">{template.name}</span>
+                          {template.isPro && (
+                            <span className="text-[8px] font-display font-black bg-neon-yellow/20 text-neon-yellow px-2 py-1 rounded-md border border-neon-yellow/30">PRO</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="bg-gray-700 p-6 rounded-lg space-y-4">
-                      <h3 className="text-xl font-semibold text-white mb-2">AI Commentary</h3>
-                      <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-1">Commentary Style { !isPro && '🏆' }</label>
-                          <div className="flex flex-wrap gap-2">
-                              {commentaryStyles.map(style => (
-                                  <button key={style.id} type="button" onClick={() => handleStyleSelect(style.id)}
-                                      className={`px-3 py-1 text-sm rounded-full transition-colors ${commentaryStyle === style.id ? 'bg-blue-500 text-white' : 'bg-gray-800 hover:bg-gray-600'}`}>
-                                      {style.name}
-                                  </button>
-                              ))}
-                          </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                  <div className="glass-panel border-white/10 p-8 rounded-[2rem] relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-neon-emerald/50" />
+                    <h3 className="text-xl font-display font-black text-white uppercase tracking-widest italic mb-8">AI Commentary Engine</h3>
+                    <div className="space-y-8">
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1 flex items-center gap-2">
+                          Narrative Style {!isPro && <span className="text-neon-yellow">🏆</span>}
+                        </label>
+                        <div className="flex flex-wrap gap-3">
+                          {commentaryStyles.map(style => (
+                            <button key={style.id} type="button" onClick={() => handleStyleSelect(style.id)}
+                              className={`px-5 py-2.5 text-[10px] font-display font-bold uppercase tracking-widest rounded-xl transition-all border ${commentaryStyle === style.id ? 'bg-neon-emerald/20 text-neon-emerald border-neon-emerald/50 shadow-[0_0_20px_rgba(16,255,145,0.1)]' : 'bg-white/5 text-white/40 border-white/5 hover:border-white/20 hover:text-white/60'}`}>
+                              {style.name}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      <div>
-                          <label htmlFor="commentaryLanguage" className="block text-sm font-medium text-gray-300 mb-1">Commentary Language { !isPro && '🏆' }</label>
-                          <select id="commentaryLanguage" value={commentaryLanguage} onChange={(e) => handleLanguageSelect(e.target.value as CommentaryLanguage)}
-                              className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-blue-500">
-                              {commentaryLanguages.map(lang => <option key={lang.id} value={lang.id}>{lang.name}</option>)}
-                          </select>
+                      <div className="space-y-3">
+                        <label htmlFor="commentaryLanguage" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1 flex items-center gap-2">
+                          Output Language {!isPro && <span className="text-neon-yellow">🏆</span>}
+                        </label>
+                        <select id="commentaryLanguage" value={commentaryLanguage} onChange={(e) => handleLanguageSelect(e.target.value as CommentaryLanguage)}
+                          className="w-full h-14 glass-panel border-white/10 bg-white/5 rounded-xl p-4 text-white font-display font-bold uppercase tracking-widest focus:border-neon-emerald transition-all outline-none appearance-none cursor-pointer">
+                          {commentaryLanguages.map(lang => <option key={lang.id} value={lang.id} className="bg-slate-900">{lang.name}</option>)}
+                        </select>
                       </div>
-                      <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-1">Broadcast Styles { !isPro && '🏆' }</label>
-                          <div className="space-y-2">
-                              {broadcastStyleOptions.map(style => (
-                                  <div key={style.id} onClick={() => handleBroadcastStyleToggle(style.id)}
-                                      className={`p-2 rounded-md cursor-pointer transition-colors flex items-center gap-3 ${selectedBroadcastStyles.includes(style.id) ? 'bg-blue-600/30 ring-2 ring-blue-500' : 'bg-gray-800 hover:bg-gray-600'}`}>
-                                      <input type="checkbox" checked={selectedBroadcastStyles.includes(style.id)} readOnly className="form-checkbox h-5 w-5 text-blue-600 bg-gray-700 border-gray-500 rounded focus:ring-blue-500 pointer-events-none" />
-                                      <div>
-                                          <p className="font-semibold text-white">{style.name}</p>
-                                          <p className="text-xs text-gray-400">{style.description}</p>
-                                      </div>
-                                  </div>
-                              ))}
-                          </div>
-                      </div>
-                  </div>
-                  <div className="bg-gray-700 p-6 rounded-lg space-y-4">
-                      <h3 className="text-xl font-semibold text-white mb-2">Monetization & Sponsorship { !isPro && '🏆' }</h3>
-                       <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-1">Monetization Model</label>
-                          <div className="flex gap-2">
-                              <button type="button" onClick={() => setMonetizationModel('free')} className={`flex-1 text-center p-2 rounded-lg transition-colors ${monetizationModel === 'free' ? 'bg-green-600' : 'bg-gray-800 hover:bg-gray-600'}`}>
-                                  Free
-                              </button>
-                              <button type="button" onClick={() => handleMonetizationSelect('ppv')} className={`flex-1 text-center p-2 rounded-lg transition-colors ${monetizationModel === 'ppv' ? 'bg-green-600' : 'bg-gray-800 hover:bg-gray-600'}`}>
-                                  Pay-Per-View
-                              </button>
-                          </div>
-                          {monetizationModel === 'ppv' && isPro && (
-                            <div className="mt-2">
-                                <label htmlFor="ppvPrice" className="block text-sm font-medium text-gray-300 mb-1">Price ($)</label>
-                                <input type="number" id="ppvPrice" value={ppvPrice} onChange={e => setPpvPrice(parseFloat(e.target.value))} step="0.01" min="0" className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white" />
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1 flex items-center gap-2">
+                          Broadcast Overlays {!isPro && <span className="text-neon-yellow">🏆</span>}
+                        </label>
+                        <div className="space-y-3">
+                          {broadcastStyleOptions.map(style => (
+                            <div key={style.id} onClick={() => handleBroadcastStyleToggle(style.id)}
+                              className={`p-4 rounded-2xl cursor-pointer transition-all flex items-center gap-4 border ${selectedBroadcastStyles.includes(style.id) ? 'bg-neon-emerald/10 border-neon-emerald/50 shadow-[0_0_20px_rgba(16,255,145,0.05)]' : 'bg-white/5 border-white/5 hover:border-white/10'}`}>
+                              <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${selectedBroadcastStyles.includes(style.id) ? 'bg-neon-emerald border-neon-emerald text-black' : 'border-white/20'}`}>
+                                {selectedBroadcastStyles.includes(style.id) && <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
+                              </div>
+                              <div>
+                                <p className="text-sm font-display font-black text-white uppercase tracking-widest">{style.name}</p>
+                                <p className="text-[10px] font-display font-bold text-white/30 uppercase tracking-widest">{style.description}</p>
+                              </div>
                             </div>
-                          )}
-                       </div>
-                       <div>
-                          <label htmlFor="sponsorLogo" className="block text-sm font-medium text-gray-300 mb-1">Sponsor Logo URL</label>
-                          <input type="text" id="sponsorLogo" value={sponsorLogo} onChange={(e) => setSponsorLogo(e.target.value)} placeholder="https://example.com/logo.png" className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white" disabled={!isPro} />
-                          {sponsorLogo && <img src={sponsorLogo} alt="Sponsor Preview" className="mt-2 max-h-16 bg-white p-1 rounded" />}
+                          ))}
+                        </div>
                       </div>
-                      <div>
-                          <label htmlFor="adBanner" className="block text-sm font-medium text-gray-300 mb-1">Ad Banner URL</label>
-                          <input type="text" id="adBanner" value={adBanner} onChange={(e) => setAdBanner(e.target.value)} placeholder="https://example.com/ad.png" className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white" disabled={!isPro} />
-                          {adBanner && <img src={adBanner} alt="Ad Preview" className="mt-2 max-h-24 object-contain" />}
+                    </div>
+                  </div>
+
+                  <div className="glass-panel border-white/10 p-8 rounded-[2rem] relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-neon-yellow/50" />
+                    <h3 className="text-xl font-display font-black text-white uppercase tracking-widest italic mb-8">Monetization & Sponsorship {!isPro && <span className="text-neon-yellow">🏆</span>}</h3>
+                    <div className="space-y-8">
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Monetization Model</label>
+                        <div className="flex gap-3">
+                          <button type="button" onClick={() => setMonetizationModel('free')} 
+                            className={`flex-1 text-center p-4 rounded-xl font-display font-bold uppercase tracking-widest transition-all border ${monetizationModel === 'free' ? 'bg-neon-yellow/20 text-neon-yellow border-neon-yellow/50 shadow-[0_0_20px_rgba(255,255,0,0.1)]' : 'bg-white/5 text-white/40 border-white/5 hover:border-white/20'}`}>
+                            Free
+                          </button>
+                          <button type="button" onClick={() => handleMonetizationSelect('ppv')} 
+                            className={`flex-1 text-center p-4 rounded-xl font-display font-bold uppercase tracking-widest transition-all border ${monetizationModel === 'ppv' ? 'bg-neon-yellow/20 text-neon-yellow border-neon-yellow/50 shadow-[0_0_20px_rgba(255,255,0,0.1)]' : 'bg-white/5 text-white/40 border-white/5 hover:border-white/20'}`}>
+                            Pay-Per-View
+                          </button>
+                        </div>
+                        {monetizationModel === 'ppv' && isPro && (
+                          <div className="mt-4 animate-fade-in">
+                            <label htmlFor="ppvPrice" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Access Fee ($)</label>
+                            <input type="number" id="ppvPrice" value={ppvPrice} onChange={e => setPpvPrice(parseFloat(e.target.value))} step="0.01" min="0" 
+                              className="w-full glass-panel border-white/10 bg-white/5 rounded-xl p-4 text-white font-mono text-sm focus:border-neon-yellow transition-all outline-none" />
+                          </div>
+                        )}
                       </div>
+                      <div className="space-y-3">
+                        <label htmlFor="sponsorLogo" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Sponsor Identity URL</label>
+                        <input type="text" id="sponsorLogo" value={sponsorLogo} onChange={(e) => setSponsorLogo(e.target.value)} placeholder="https://example.com/logo.png" 
+                          className="w-full glass-panel border-white/10 bg-white/5 rounded-xl p-4 text-white font-display font-bold uppercase tracking-widest focus:border-neon-yellow transition-all outline-none" disabled={!isPro} />
+                        {sponsorLogo && (
+                          <div className="mt-4 p-4 glass-panel border-white/5 bg-white/5 rounded-2xl flex items-center justify-center">
+                            <img src={sponsorLogo} alt="Sponsor Preview" className="max-h-20 object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-3">
+                        <label htmlFor="adBanner" className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] ml-1">Ad Banner URL</label>
+                        <input type="text" id="adBanner" value={adBanner} onChange={(e) => setAdBanner(e.target.value)} placeholder="https://example.com/ad.png" 
+                          className="w-full glass-panel border-white/10 bg-white/5 rounded-xl p-4 text-white font-display font-bold uppercase tracking-widest focus:border-neon-yellow transition-all outline-none" disabled={!isPro} />
+                        {adBanner && (
+                          <div className="mt-4 p-4 glass-panel border-white/5 bg-white/5 rounded-2xl flex items-center justify-center">
+                            <img src={adBanner} alt="Ad Preview" className="max-h-24 object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
+
           </div>
-          <div className="mt-8 pt-8 border-t border-gray-700 text-center">
-            <button type="submit" className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-12 text-lg rounded-lg transition-transform transform hover:scale-105">
-              Start Match
+          <div className="mt-12 pt-12 border-t border-white/5 text-center">
+            <button type="submit" className="group relative px-16 py-6 bg-neon-cyan text-black font-display font-black uppercase tracking-[0.4em] italic rounded-full overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-[0_0_50px_rgba(0,255,255,0.3)] hover:shadow-[0_0_100px_rgba(0,255,255,0.5)]">
+              <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12" />
+              <span className="relative z-10 flex items-center gap-4">
+                Initiate Match Protocol
+                <PlayIcon className="w-7 h-7" />
+              </span>
             </button>
           </div>
         </form>

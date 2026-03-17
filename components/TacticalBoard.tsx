@@ -1,9 +1,9 @@
-import React, { useRef, useState, useEffect, MouseEvent } from 'react';
+import React, { useRef, useState, useEffect, MouseEvent, useCallback } from 'react';
 import { PencilIcon, LineIcon, CircleIcon, UndoIcon, BrainIcon, TrashIcon } from './icons/ControlIcons';
 import { useProContext } from '../context/ProContext';
 import { useMatchContext } from '../context/MatchContext';
 import { getTacticalSuggestion } from '../services/geminiService';
-import type { TacticalSuggestion, AiDrawing } from '../types';
+import type { TacticalSuggestion } from '../types';
 
 interface UserPath {
   id: number;
@@ -38,12 +38,12 @@ const TacticalBoard: React.FC<TacticalBoardProps> = ({ onClose, videoRef }) => {
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [aiError, setAiError] = useState('');
 
-  const scaleCoords = (points: {x: number, y: number}[], canvas: HTMLCanvasElement) => {
+  const scaleCoords = useCallback((points: {x: number, y: number}[], canvas: HTMLCanvasElement) => {
     return points.map(p => ({ x: p.x * canvas.width / 100, y: p.y * canvas.height / 100 }));
-  }
+  }, []);
 
   // Draw everything on the interactive canvas
-  const draw = () => {
+  const draw = useCallback(() => {
     const canvas = drawingCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -117,9 +117,9 @@ const TacticalBoard: React.FC<TacticalBoardProps> = ({ onClose, videoRef }) => {
       }
       ctx.stroke();
     });
-  };
+  }, [aiSuggestion, userPaths, currentUserPath, scaleCoords]);
 
-  const setupCanvases = () => {
+  const setupCanvases = useCallback(() => {
       const container = containerRef.current;
       const bgCanvas = backgroundCanvasRef.current;
       const drawCanvas = drawingCanvasRef.current;
@@ -135,7 +135,7 @@ const TacticalBoard: React.FC<TacticalBoardProps> = ({ onClose, videoRef }) => {
         bgCtx.drawImage(video, 0, 0, clientWidth, clientHeight);
       }
       draw();
-  }
+  }, [videoRef, draw]);
   
   useEffect(() => {
     // A small delay to allow the container to render and get its size
@@ -146,9 +146,9 @@ const TacticalBoard: React.FC<TacticalBoardProps> = ({ onClose, videoRef }) => {
         clearTimeout(timeoutId);
         window.removeEventListener('resize', setupCanvases);
     };
-  }, []); // Run only on mount
+  }, [setupCanvases]); // Run only on mount
 
-  useEffect(draw, [userPaths, currentUserPath, aiSuggestion]);
+  useEffect(draw, [draw]);
 
 
   const getPoint = (e: MouseEvent<HTMLCanvasElement>): { x: number; y: number } => {
@@ -223,8 +223,9 @@ const TacticalBoard: React.FC<TacticalBoardProps> = ({ onClose, videoRef }) => {
         
         const suggestion = await getTacticalSuggestion(base64Frame, state);
         setAiSuggestion(suggestion);
-    } catch (e: any) {
-        setAiError(e.message || "An error occurred.");
+    } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : "An error occurred.";
+        setAiError(errorMessage);
     } finally {
         setIsLoadingAI(false);
     }

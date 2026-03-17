@@ -26,8 +26,8 @@ const HalfTimeAnalysis: React.FC<HalfTimeAnalysisProps> = ({ period }) => {
             try {
                 const result = await generateHalfTimeAnalysis(state, period);
                 setAnalysis(result);
-            } catch (e: any) {
-                setError(e.message || 'Failed to get analysis.');
+            } catch (e: unknown) {
+                setError(e instanceof Error ? e.message : 'Failed to get analysis.');
             } finally {
                 setIsLoading(false);
             }

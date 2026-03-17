@@ -5,12 +5,20 @@ let isFullMatchRecordingActive = false;
 
 const REPLAY_BUFFER_DURATION_MS = 15000; // 15 seconds
 
-// Check for H.265 (HEVC) support. 'hvc1' is a common codec string for HEVC in MP4.
-const hevcMimeType = 'video/mp4; codecs="hvc1"';
-const isHevcSupported = MediaRecorder.isTypeSupported(hevcMimeType);
+// Check for VP9 or VP8 support for better stability
+const vp9MimeType = 'video/webm; codecs="vp9"';
+const vp8MimeType = 'video/webm; codecs="vp8"';
+const webmMimeType = 'video/webm';
+
+let selectedMimeType = webmMimeType;
+if (MediaRecorder.isTypeSupported(vp9MimeType)) {
+    selectedMimeType = vp9MimeType;
+} else if (MediaRecorder.isTypeSupported(vp8MimeType)) {
+    selectedMimeType = vp8MimeType;
+}
 
 const options = {
-    mimeType: isHevcSupported ? hevcMimeType : 'video/webm',
+    mimeType: selectedMimeType,
 };
 
 const startInternal = (stream: MediaStream): boolean => {

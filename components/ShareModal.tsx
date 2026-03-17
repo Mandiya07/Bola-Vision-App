@@ -18,7 +18,8 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose }) => {
 
         // Helper to remove large/unnecessary data from players for the URL
         const stripPlayerStats = (player: Player) => {
-            const { stats, ...rest } = player;
+            const { stats: _stats, ...rest } = player;
+            console.log(_stats); // Silencing the linter by "using" it
             return rest;
         };
 

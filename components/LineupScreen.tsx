@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import type { Team, Player } from '../types';
+import type { Team } from '../types';
 import PitchDisplay from './PitchDisplay';
 import { generatePreMatchHype } from '../services/geminiService';
 
@@ -58,31 +58,37 @@ interface TeamLineupProps {
 }
 
 const TeamLineup: React.FC<TeamLineupProps> = ({ team, onPlayerPositionChange }) => (
-    <div className="flex flex-col items-center gap-4 w-full">
-        <div className="flex flex-col items-center gap-2 mb-4">
-            {team.logo && <img src={team.logo} alt={`${team.name} logo`} className="w-24 h-24 object-contain" />}
-            <h2 className="text-3xl font-bold text-center" style={{ color: team.color || '#FFFFFF' }}>{team.name}</h2>
-            <p className="text-lg text-gray-300 font-semibold bg-black/30 px-3 py-1 rounded-full">{team.formation}</p>
-            {team.coachName && <p className="text-md text-gray-400 mt-1">Coach: {team.coachName}</p>}
+    <div className="flex flex-col items-center gap-6 w-full">
+        <div className="flex flex-col items-center gap-3 mb-4 group">
+            <div className="relative">
+              {team.logo && <img src={team.logo} alt={`${team.name} logo`} className="w-24 h-24 md:w-32 md:h-32 object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]" />}
+              <div className="absolute -inset-4 border border-white/5 rounded-full animate-spin-slow opacity-20" />
+            </div>
+            <h2 className="text-3xl font-display font-black uppercase tracking-tighter italic" style={{ color: team.color || '#FFFFFF', textShadow: `0 0 20px ${team.color || '#FFFFFF'}80` }}>{team.name}</h2>
+            <div className="flex items-center gap-3">
+              <p className="text-[10px] font-display font-bold text-neon-cyan bg-neon-cyan/10 border border-neon-cyan/30 px-3 py-1 rounded-full uppercase tracking-[0.3em]">{team.formation}</p>
+              {team.coachName && <p className="text-[10px] font-display font-bold text-white/40 uppercase tracking-widest">Dir: {team.coachName}</p>}
+            </div>
         </div>
         
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-sm glass-panel border-white/10 p-4 rounded-[2rem] shadow-2xl relative overflow-hidden">
+           <div className="absolute inset-0 bg-gradient-to-b from-neon-cyan/5 to-transparent pointer-events-none" />
            <PitchDisplay team={team} onPlayerPositionChange={onPlayerPositionChange} />
         </div>
         
-        <div className="w-full max-w-sm bg-black/20 p-3 rounded-lg space-y-2 max-h-48 overflow-y-auto mt-2">
-            <h3 className="font-semibold text-center text-gray-300 sticky top-0 bg-black/50 py-1">Full Roster</h3>
-            {team.players.map((player, index) => (
+        <div className="w-full max-w-sm glass-panel border-white/5 p-4 rounded-2xl space-y-2 max-h-56 overflow-y-auto scrollbar-hide mt-2 bg-white/5">
+            <h3 className="text-[10px] font-display font-bold text-center text-white/30 uppercase tracking-[0.4em] sticky top-0 bg-slate-900/90 py-2 z-10 backdrop-blur-sm border-b border-white/5 mb-2">Squad Manifest</h3>
+            {team.players.map((player) => (
                 <div 
                     key={player.number}
-                    className="flex items-center justify-between text-base p-2 rounded"
-                    style={{ backgroundColor: `${team.color}20` }}
+                    className="flex items-center justify-between text-base p-3 rounded-xl border border-white/5 transition-all hover:border-white/20 hover:bg-white/5 group"
+                    style={{ backgroundColor: `${team.color}0D` }}
                 >
-                    <div className="flex items-center gap-3">
-                        <span className="font-mono font-bold w-8 text-center" style={{ color: team.color || '#FFFFFF' }}>#{player.number}</span>
-                        <span className="font-semibold truncate">{player.name}</span>
+                    <div className="flex items-center gap-4">
+                        <span className="font-display font-black w-8 text-center text-lg italic" style={{ color: team.color || '#FFFFFF' }}>{player.number}</span>
+                        <span className="font-display font-bold text-white/80 group-hover:text-white transition-colors truncate uppercase tracking-tight">{player.name}</span>
                     </div>
-                    <span className="text-sm text-gray-300">{player.role}</span>
+                    <span className="text-[8px] font-display font-bold text-white/30 uppercase tracking-widest">{player.role}</span>
                 </div>
             ))}
         </div>
@@ -141,8 +147,8 @@ const LineupScreen: React.FC<LineupScreenProps> = ({ homeTeam, awayTeam, onLineu
     try {
       const text = await generatePreMatchHype(homeTeamState, awayTeamState);
       setHypeText(text);
-    } catch (error: any) {
-      setHypeError(error.message || 'An unknown error occurred.');
+    } catch (error: unknown) {
+      setHypeError(error instanceof Error ? error.message : 'An unknown error occurred.');
     } finally {
       setIsLoadingHype(false);
     }
@@ -151,44 +157,84 @@ const LineupScreen: React.FC<LineupScreenProps> = ({ homeTeam, awayTeam, onLineu
   const formattedDate = matchDate ? new Date(matchDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '';
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 pitch-background animate-fade-in relative">
-        <h1 className="absolute top-6 left-6 text-3xl font-bold opacity-80" style={{ color: '#00e676' }}>BolaVision</h1>
-        <div className="w-full max-w-7xl bg-black/50 backdrop-blur-md rounded-xl shadow-2xl p-8">
-            <div className="text-center mb-6">
-                {leagueName && <p className="text-xl font-semibold text-gray-300">{leagueName}{venue && ` | ${venue}`}</p>}
-                <h1 className="text-4xl font-extrabold text-yellow-300 tracking-wider uppercase">Match Day Lineups</h1>
-                {(formattedDate || matchTimeOfDay) && <p className="text-lg text-gray-400">{formattedDate} - {matchTimeOfDay}</p>}
-                 <p className="text-sm text-cyan-300 mt-2">Hint: You can drag players on the pitch to adjust their positions!</p>
+    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 pitch-background animate-fade-in relative overflow-hidden">
+        {/* Background decorative elements */}
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-neon-cyan/5 blur-[120px] rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-neon-emerald/5 blur-[120px] rounded-full" />
+          <div className="scanline opacity-10" />
+        </div>
+
+        <div className="absolute top-8 left-8 flex flex-col items-start z-20">
+            <h1 className="text-4xl font-display font-black text-neon-cyan uppercase tracking-tighter italic">BolaVision</h1>
+            <p className="text-[10px] font-display font-bold text-white/30 uppercase tracking-[0.5em] mt-1">Tactical Interface v4.0</p>
+        </div>
+
+        <div className="w-full max-w-7xl glass-panel border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] p-8 md:p-12 rounded-[3rem] relative z-10 mt-16">
+            <div className="text-center mb-12 relative">
+                <div className="absolute top-1/2 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-y-1/2" />
+                <div className="relative z-10 bg-slate-950/50 backdrop-blur-md inline-block px-8 py-2 rounded-full border border-white/5 mb-4">
+                  {leagueName && <p className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.4em]">{leagueName}{venue && ` // ${venue}`}</p>}
+                </div>
+                <h1 className="text-5xl md:text-7xl font-display font-black text-white uppercase tracking-widest italic relative z-10">SQUAD DEPLOYMENT</h1>
+                {(formattedDate || matchTimeOfDay) && <p className="text-xs font-display font-bold text-neon-cyan uppercase tracking-[0.3em] mt-4 opacity-70">{formattedDate} // {matchTimeOfDay}</p>}
+                 <div className="mt-6 inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-neon-cyan/5 border border-neon-cyan/20 text-neon-cyan animate-pulse">
+                   <div className="w-2 h-2 rounded-full bg-neon-cyan shadow-[0_0_10px_rgba(0,243,255,1)]" />
+                   <p className="text-[10px] font-display font-bold uppercase tracking-widest">Manual Override: Drag units to re-position</p>
+                 </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
                 <TeamLineup team={homeTeamState} onPlayerPositionChange={(num, pos) => handlePlayerPositionChange('home', num, pos)} />
                 <TeamLineup team={awayTeamState} onPlayerPositionChange={(num, pos) => handlePlayerPositionChange('away', num, pos)} />
             </div>
         </div>
 
-        <div className="w-full max-w-3xl mt-6 flex flex-col items-center gap-4 bg-black/50 backdrop-blur-md rounded-xl p-6">
-            <h2 className="text-2xl font-bold text-yellow-300">Pre-Match Buzz</h2>
+        <div className="w-full max-w-3xl mt-8 flex flex-col items-center gap-6 glass-panel border-white/10 p-8 rounded-[2rem] relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="h-px w-12 bg-gradient-to-r from-transparent to-neon-cyan" />
+              <h2 className="text-xl font-display font-black text-white uppercase tracking-[0.3em]">Neural Analysis</h2>
+              <div className="h-px w-12 bg-gradient-to-l from-transparent to-neon-cyan" />
+            </div>
+            
             <button 
               onClick={handleGenerateHype} 
               disabled={isLoadingHype}
-              className="bg-indigo-600 hover:bg-indigo-700 font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105 disabled:bg-gray-500 disabled:cursor-wait"
+              className="glass-panel border-neon-cyan/30 bg-neon-cyan/5 hover:bg-neon-cyan/10 text-neon-cyan font-display font-black uppercase tracking-[0.2em] py-4 px-10 rounded-2xl transition-all hover:scale-105 hover:border-neon-cyan shadow-[0_0_20px_rgba(0,243,255,0.1)] disabled:opacity-50 disabled:cursor-wait flex items-center gap-3"
             >
-              {isLoadingHype ? 'Pundit is Thinking...' : '⚡ Generate AI Banter'}
+              {isLoadingHype ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-neon-cyan border-t-transparent rounded-full animate-spin" />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-xl">⚡</span>
+                  <span>Synthesize AI Intel</span>
+                </>
+              )}
             </button>
+            
             {hypeText && (
-                <blockquote className="mt-4 p-4 border-l-4 border-yellow-400 bg-gray-800/50 rounded-r-lg animate-fade-in-fast">
-                    <p className="text-lg italic text-gray-200">"{hypeText}"</p>
-                    <footer className="text-right text-sm text-gray-400 mt-2">- BolaVision AI Pundit</footer>
-                </blockquote>
+                <div className="mt-4 relative group animate-fade-in-fast w-full">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-neon-cyan/20 to-transparent blur opacity-50" />
+                    <blockquote className="relative p-6 glass-panel border-white/10 bg-white/5 rounded-2xl italic">
+                        <p className="text-lg font-body text-white/90 leading-relaxed tracking-wide">"{hypeText}"</p>
+                        <footer className="text-right text-[10px] font-display font-bold text-white/30 uppercase tracking-widest mt-4">— BolaVision Neural Pundit v2.4</footer>
+                    </blockquote>
+                </div>
             )}
             {hypeError && (
-                <p className="mt-4 text-red-400 text-center">{hypeError}</p>
+                <p className="mt-4 text-neon-yellow text-[10px] font-display font-bold uppercase tracking-widest animate-pulse">{hypeError}</p>
             )}
         </div>
 
-        <div className="w-full max-w-7xl mt-6 flex flex-col items-center gap-2">
-            <button onClick={() => onLineupsConfirmed(homeTeamState, awayTeamState)} className="bg-green-600 hover:bg-green-700 font-bold py-3 px-8 text-lg rounded-lg transition-transform transform hover:scale-105">
-                Proceed to Calibration
+        <div className="w-full max-w-7xl mt-12 mb-12 flex flex-col items-center gap-2 relative z-10">
+            <button 
+              onClick={() => onLineupsConfirmed(homeTeamState, awayTeamState)} 
+              className="glass-panel border-white/10 bg-white/5 hover:bg-white/10 text-white font-display font-black uppercase tracking-[0.3em] py-5 px-16 text-lg rounded-3xl transition-all hover:scale-105 hover:border-neon-cyan hover:text-neon-cyan shadow-[0_20px_50px_rgba(0,0,0,0.5)] group"
+            >
+                Initialize Calibration
+                <span className="ml-4 opacity-30 group-hover:opacity-100 transition-opacity">→</span>
             </button>
         </div>
     </div>

@@ -3,6 +3,14 @@ import { useMatchContext } from '../context/MatchContext';
 import { CheckCircleIcon, XCircleIcon } from './icons/ControlIcons';
 import type { Team } from '../types';
 
+const TeamDisplay: React.FC<{ teamData: Team, score: number, isCurrent: boolean }> = ({ teamData, score, isCurrent }) => (
+    <div className={`flex items-center gap-3 transition-all duration-300 ${isCurrent ? 'scale-110' : 'opacity-70'}`}>
+        {teamData.logo && <img src={teamData.logo} alt={teamData.name} className="w-10 h-10 object-contain" />}
+        <span className="text-xl font-bold uppercase tracking-wider">{teamData.name.substring(0, 3)}</span>
+        <span className="text-3xl font-black" style={{ color: teamData.color }}>{score}</span>
+    </div>
+);
+
 const PenaltyShootoutOverlay: React.FC = () => {
     const { state } = useMatchContext();
     const { penaltyShootout, homeTeam, awayTeam, matchPeriod } = state;
@@ -40,14 +48,6 @@ const PenaltyShootoutOverlay: React.FC = () => {
         }
         return markers;
     };
-    
-    const TeamDisplay: React.FC<{teamData: Team, score: number, isCurrent: boolean}> = ({teamData, score, isCurrent}) => (
-         <div className={`flex items-center gap-3 transition-all duration-300 ${isCurrent ? 'scale-110' : 'opacity-70'}`}>
-            {teamData.logo && <img src={teamData.logo} alt={teamData.name} className="w-10 h-10 object-contain" />}
-            <span className="text-xl font-bold uppercase tracking-wider">{teamData.name.substring(0, 3)}</span>
-            <span className="text-3xl font-black" style={{color: teamData.color}}>{score}</span>
-        </div>
-    );
 
     return (
         <div className="absolute top-5 left-1/2 -translate-x-1/2 w-full max-w-lg bg-black/70 backdrop-blur-md rounded-xl shadow-2xl p-4 text-white border-2 border-yellow-400/50 animate-fade-in z-30">

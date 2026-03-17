@@ -10,20 +10,26 @@ const PollOverlay: React.FC = () => {
 
     useEffect(() => {
         if (activePoll) {
-            setIsVisible(true);
-            setHasVoted(false); // Reset vote status for new poll
+            const showTimer = setTimeout(() => {
+                setIsVisible(true);
+                setHasVoted(false); // Reset vote status for new poll
+            }, 0);
             
             // Auto-hide logic
             const duration = activePoll.isLive ? 30000 : 10000; // 30s for live, 10s for results
-            const timer = setTimeout(() => {
+            const hideTimer = setTimeout(() => {
                 setIsVisible(false);
                 // Give it time to fade out before clearing from state
                 setTimeout(() => dispatch({ type: 'CLEAR_POLL' }), 500);
             }, duration);
 
-            return () => clearTimeout(timer);
+            return () => {
+                clearTimeout(showTimer);
+                clearTimeout(hideTimer);
+            };
         } else {
-            setIsVisible(false);
+            const timer = setTimeout(() => setIsVisible(false), 0);
+            return () => clearTimeout(timer);
         }
     }, [activePoll, dispatch]);
 

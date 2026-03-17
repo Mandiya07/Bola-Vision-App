@@ -237,11 +237,11 @@ export async function getSavedVideosList(): Promise<{ id: string; name: string }
         request.onsuccess = () => {
             if (request.result) {
                 // Filter out highlight blobs, which don't have a 'name' property
-                const videoList = request.result
-                    .filter((record: any) => record.name) 
-                    .map((record: any) => ({
+                const videoList = (request.result as { id: string; name?: string }[])
+                    .filter((record) => record.name) 
+                    .map((record) => ({
                         id: record.id,
-                        name: record.name,
+                        name: record.name!,
                     }));
                 resolve(videoList);
             } else {

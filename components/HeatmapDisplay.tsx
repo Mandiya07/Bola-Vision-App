@@ -49,15 +49,27 @@ const HeatmapDisplay: React.FC<HeatmapDisplayProps> = ({ points, color }) => {
   }, [points, color]);
 
   return (
-    <div className="relative w-full h-full bg-green-700/50 border-2 border-white/30 rounded-lg p-2 overflow-hidden" style={{ background: 'radial-gradient(ellipse at center, #2e7d32, #1b5e20)' }}>
-        {/* Pitch Markings */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-[18%] border-2 border-white/30 rounded-b-lg border-t-0"></div>
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-[18%] border-2 border-white/30 rounded-t-lg border-b-0"></div>
-        <div className="absolute top-1/2 left-0 w-full h-px bg-white/30"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1/4 aspect-square border-2 border-white/30 rounded-full"></div>
+    <div className="relative w-full h-full glass-panel border-white/10 rounded-2xl p-2 overflow-hidden bg-slate-950">
+        {/* Futuristic Pitch Markings */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-[18%] border border-neon-cyan rounded-b-xl border-t-0 shadow-[0_0_10px_rgba(0,243,255,0.2)]"></div>
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-[18%] border border-neon-cyan rounded-t-xl border-b-0 shadow-[0_0_10px_rgba(0,243,255,0.2)]"></div>
+          <div className="absolute top-1/2 left-0 w-full h-px bg-neon-cyan shadow-[0_0_5px_rgba(0,243,255,0.3)]"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1/4 aspect-square border border-neon-cyan rounded-full shadow-[0_0_10px_rgba(0,243,255,0.2)]"></div>
+          
+          {/* Grid lines */}
+          <div className="absolute inset-0 grid grid-cols-6 grid-rows-10 opacity-10">
+            {[...Array(60)].map((_, i) => (
+              <div key={i} className="border-[0.5px] border-white/20" />
+            ))}
+          </div>
+        </div>
 
         {/* Heatmap Canvas */}
-        <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full" />
+        <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full mix-blend-screen" />
+        
+        {/* Scanline effect on heatmap */}
+        <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] z-10 opacity-30" />
     </div>
   );
 };

@@ -34,9 +34,11 @@ const SubstitutionModal: React.FC<SubstitutionModalProps> = ({ onClose }) => {
         const isCurrentSelectionValid = filteredPlayers.some(p => p.number.toString() === playerOutNumber);
 
         if (!isCurrentSelectionValid && filteredPlayers.length > 0) {
-            setPlayerOutNumber(filteredPlayers[0].number.toString());
+            const timer = setTimeout(() => setPlayerOutNumber(filteredPlayers[0].number.toString()), 0);
+            return () => clearTimeout(timer);
         } else if (filteredPlayers.length === 0) {
-            setPlayerOutNumber(undefined);
+            const timer = setTimeout(() => setPlayerOutNumber(undefined), 0);
+            return () => clearTimeout(timer);
         }
     }, [filteredPlayers, playerOutNumber]);
 

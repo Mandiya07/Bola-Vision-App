@@ -50,99 +50,99 @@ const DefaultScoreboard: React.FC = () => {
   const { penaltyShootout } = state;
 
   return (
-    <div className="absolute top-6 left-6 flex flex-col gap-1 z-30 animate-fade-in select-none font-sans">
+    <div className="absolute top-6 left-6 flex flex-col gap-0 z-30 animate-fade-in select-none font-body">
       {/* League Header */}
-      <div className="flex items-center justify-between bg-black/90 text-gray-300 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-t-lg border-b border-white/10 w-fit min-w-[200px] backdrop-blur-sm shadow-md">
-          <span>{state.leagueName || 'Match Day'}</span>
-          <div className="flex items-center gap-1.5">
-             {state.weather && <span className="opacity-70">{state.weather}</span>}
+      <div className="flex items-center justify-between glass-panel text-neon-cyan text-[10px] font-display font-bold uppercase tracking-[0.2em] px-4 py-1.5 rounded-t-lg border-b border-neon-cyan/20 w-full min-w-[240px] shadow-lg">
+          <span>{state.leagueName || 'BOLA VISION PRO'}</span>
+          <div className="flex items-center gap-2">
+             {state.weather && <span className="opacity-70 text-white/60">{state.weather}</span>}
              {state.isMatchPlaying && (
                  <span className="flex h-2 w-2 relative" title="Live">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-cyan opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-neon-cyan"></span>
                  </span>
              )}
           </div>
       </div>
 
       {/* Main Scoreboard */}
-      <div className="flex h-14 shadow-2xl rounded-b-lg overflow-hidden ring-1 ring-white/10">
+      <div className="flex h-16 glass-panel rounded-b-lg overflow-hidden border-t-0 neon-border-cyan/30">
           
           {/* Home Team */}
-          <div className="flex-1 flex items-center justify-end bg-gray-900/90 backdrop-blur-md pl-4 pr-3 gap-3 min-w-[140px] relative">
-              <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: state.homeTeam.color || '#3b82f6' }}></div>
-              <span className="text-white font-bold text-lg uppercase tracking-wide truncate text-right drop-shadow-md">
+          <div className="flex-1 flex items-center justify-end bg-slate-900/40 pl-4 pr-3 gap-3 min-w-[140px] relative group">
+              <div className="absolute left-0 top-0 bottom-0 w-1 shadow-[0_0_15px_rgba(0,243,255,0.5)]" style={{ backgroundColor: state.homeTeam.color || '#00f3ff' }}></div>
+              <span className="text-white font-display font-bold text-sm uppercase tracking-wider truncate text-right">
                   {state.homeTeam.name}
               </span>
               {state.homeTeam.logo ? (
-                  <img src={state.homeTeam.logo} alt="Home Logo" className="w-9 h-9 object-contain drop-shadow-lg" />
+                  <img src={state.homeTeam.logo} alt="Home Logo" className="w-10 h-10 object-contain filter drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]" />
               ) : (
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 border border-gray-500 flex items-center justify-center text-xs font-bold text-gray-300">
+                  <div className="w-10 h-10 rounded-lg glass-panel border-white/20 flex items-center justify-center text-xs font-display font-bold text-white/80">
                       {state.homeTeam.name.substring(0,1)}
                   </div>
               )}
           </div>
 
           {/* Score & Time Center */}
-          <div className="flex flex-col items-center justify-center bg-black px-5 min-w-[100px] border-x border-white/5 relative overflow-hidden">
-              {/* Background gradient shine */}
-              <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
+          <div className="flex flex-col items-center justify-center bg-slate-950/80 px-6 min-w-[110px] border-x border-white/10 relative overflow-hidden">
+              {/* Background scanline effect */}
+              <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] pointer-events-none opacity-20"></div>
               
-              <div className="flex items-center gap-2 text-3xl font-black text-white leading-none z-10 font-mono tracking-tighter">
-                  <span>{state.homeStats.goals}</span>
-                  <span className="text-gray-600 text-xl font-sans opacity-50">-</span>
-                  <span>{state.awayStats.goals}</span>
+              <div className="flex items-center gap-3 text-3xl font-display font-black text-white leading-none z-10 tracking-tighter">
+                  <span className="neon-text-cyan">{state.homeStats.goals}</span>
+                  <span className="text-white/20 text-xl font-body">:</span>
+                  <span className="neon-text-cyan">{state.awayStats.goals}</span>
               </div>
-              <div className="text-[10px] font-bold text-green-400 uppercase tracking-widest mt-0.5 z-10 bg-green-900/30 px-1.5 rounded">
+              <div className="text-[11px] font-mono font-bold text-neon-emerald uppercase tracking-[0.15em] mt-1 z-10 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                   {formatTime(state.matchTime, state.matchPeriod)}
               </div>
           </div>
 
           {/* Away Team */}
-          <div className="flex-1 flex items-center justify-start bg-gray-900/90 backdrop-blur-md pl-3 pr-4 gap-3 min-w-[140px] relative">
+          <div className="flex-1 flex items-center justify-start bg-slate-900/40 pl-3 pr-4 gap-3 min-w-[140px] relative group">
                {state.awayTeam.logo ? (
-                  <img src={state.awayTeam.logo} alt="Away Logo" className="w-9 h-9 object-contain drop-shadow-lg" />
+                  <img src={state.awayTeam.logo} alt="Away Logo" className="w-10 h-10 object-contain filter drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]" />
               ) : (
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 border border-gray-500 flex items-center justify-center text-xs font-bold text-gray-300">
+                  <div className="w-10 h-10 rounded-lg glass-panel border-white/20 flex items-center justify-center text-xs font-display font-bold text-white/80">
                       {state.awayTeam.name.substring(0,1)}
                   </div>
               )}
-              <span className="text-white font-bold text-lg uppercase tracking-wide truncate text-left drop-shadow-md">
+              <span className="text-white font-display font-bold text-sm uppercase tracking-wider truncate text-left">
                   {state.awayTeam.name}
               </span>
-              <div className="absolute right-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: state.awayTeam.color || '#ef4444' }}></div>
+              <div className="absolute right-0 top-0 bottom-0 w-1 shadow-[0_0_15px_rgba(255,0,255,0.5)]" style={{ backgroundColor: state.awayTeam.color || '#ff00ff' }}></div>
           </div>
       </div>
 
       {/* Penalty / Status Indicators */}
-      <div className="flex flex-col gap-1 items-start pl-1">
+      <div className="flex flex-col gap-1.5 items-start pl-1 mt-2">
         {penaltyShootout && (
-            <div className="bg-black/80 backdrop-blur-md px-3 py-1 rounded text-xs font-bold text-yellow-400 border border-yellow-500/20 shadow-lg flex items-center gap-2 animate-pulse mt-1">
-                <span>PENALTIES</span>
-                <span className="w-px h-3 bg-yellow-500/50"></span>
-                <span>{penaltyShootout.homeScore} - {penaltyShootout.awayScore}</span>
+            <div className="glass-panel neon-border-cyan/50 px-4 py-1.5 rounded-lg text-[11px] font-display font-bold text-neon-yellow border border-neon-yellow/20 shadow-lg flex items-center gap-3 animate-pulse">
+                <span className="tracking-widest">PENALTIES</span>
+                <span className="w-px h-3 bg-neon-yellow/30"></span>
+                <span className="font-mono text-sm">{penaltyShootout.homeScore} - {penaltyShootout.awayScore}</span>
             </div>
         )}
         
         {state.broadcastStatus === 'live' && (
-             <div className="flex items-center gap-1.5 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-lg mt-1">
-                  <BroadcastIcon className="h-3 w-3" />
-                  <span>ON AIR</span>
+             <div className="flex items-center gap-2 glass-panel border-red-500/30 text-red-500 text-[10px] font-display font-bold px-3 py-1 rounded-full shadow-lg">
+                  <BroadcastIcon className="h-3 w-3 animate-pulse" />
+                  <span className="tracking-[0.2em]">LIVE SIGNAL</span>
              </div>
         )}
         
         {state.monetization.model !== 'free' && (
-            <div className="flex items-center gap-1 bg-green-600 px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-lg mt-1">
+            <div className="flex items-center gap-2 glass-panel border-neon-emerald/30 px-3 py-1 rounded-full text-[10px] font-display font-bold text-neon-emerald shadow-lg">
                 <DollarIcon className="h-3 w-3" />
-                <span>PAID STREAM</span>
+                <span className="tracking-[0.2em]">PREMIUM FEED</span>
             </div>
         )}
       </div>
 
       {/* Sponsor Logo */}
       {state.sponsorLogo && (
-        <div className="mt-2 bg-white p-1.5 rounded-md shadow-lg inline-block w-fit opacity-90 hover:opacity-100 transition-opacity self-start">
-          <img src={state.sponsorLogo} alt="Sponsor" className="h-5 w-auto object-contain" />
+        <div className="mt-3 glass-panel p-2 rounded-lg shadow-lg inline-block w-fit opacity-80 hover:opacity-100 transition-all hover:neon-border-cyan self-start">
+          <img src={state.sponsorLogo} alt="Sponsor" className="h-6 w-auto object-contain filter brightness-0 invert opacity-70" />
         </div>
       )}
     </div>

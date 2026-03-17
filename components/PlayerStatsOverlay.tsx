@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useMatchContext } from '../context/MatchContext';
-import type { Player, PlayerStats } from '../types';
+import type { PlayerStats } from '../types';
 
 interface PlayerStatsOverlayProps {
     isVisible: boolean;

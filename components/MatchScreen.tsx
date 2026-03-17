@@ -8,7 +8,7 @@ import { recorderService } from '../services/recorderService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { useCamera } from '../hooks/useCamera';
 import { useLiveCommentary } from '../hooks/useLiveCommentary';
-import { blobToBase64, decode, encode, decodeAudioData } from '../utils/mediaUtils';
+import { decode, decodeAudioData } from '../utils/mediaUtils';
 import { publishNewMatch } from '../services/publishService';
 import Scoreboard from './Scoreboard';
 import ControlPanel from './ControlPanel';
@@ -34,7 +34,8 @@ import GoalImpactOverlay from './GoalImpactOverlay';
 import PollOverlay from './PollOverlay';
 import VarCheckOverlay from './VarCheckOverlay';
 import HalfTimeAnalysis from './HalfTimeAnalysis';
-import { AiAnalysisIcon, BrainIcon, CameraIcon, CloudOfflineIcon, EndMatchIcon, BroadcastIcon, SwitchCameraIcon } from './icons/ControlIcons';
+import HeatmapDisplay from './HeatmapDisplay';
+import { AiAnalysisIcon, BrainIcon, CameraIcon, CloudOfflineIcon, EndMatchIcon, BroadcastIcon, SwitchCameraIcon, PlayIcon, PauseIcon } from './icons/ControlIcons';
 import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import type { CommentaryLanguage, TacticalSuggestion, GameEvent, Point } from '../types';
 
@@ -86,17 +87,21 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
   const { state, dispatch, processGameEventWithCommentary } = useMatchContext();
   const [isAdShowing, setIsAdShowing] = useState(false);
   const [replayState, setReplayState] = useState<{ isReplaying: boolean; url: string | null }>({ isReplaying: false, url: null });
+  const [replayIsPlaying, setReplayIsPlaying] = useState(true);
+  const [replayCurrentTime, setReplayCurrentTime] = useState(0);
+  const [replayDuration, setReplayDuration] = useState(0);
   const [showBottomScore, setShowBottomScore] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showPlayerStats, setShowPlayerStats] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
   const [showSubModal, setShowSubModal] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [autoSaveMessage, setAutoSaveMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSaveMessage, setRecordingSaveMessage] = useState('');
   
-  const [isAdvancedAnalysisEnabled, setIsAdvancedAnalysisEnabled] = useState(false);
+  const [isAdvancedAnalysisEnabled, setIsAdvancedAnalysisEnabled] = useState(true);
   const [poseLandmarker, setPoseLandmarker] = useState<PoseLandmarker | null>(null);
   const [isPoseLandmarkerLoading, setIsPoseLandmarkerLoading] = useState(false);
   
@@ -183,7 +188,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
       const originalConsoleLog = console.log;
       const originalConsoleWarn = console.warn;
       
-      const filterMediaPipeLogs = (originalFunc: (...args: any[]) => void, ...args: any[]) => {
+      const filterMediaPipeLogs = (originalFunc: (...args: unknown[]) => void, ...args: unknown[]) => {
           const firstArg = args[0];
           if (typeof firstArg === 'string' && firstArg.includes('gl_context.cc')) {
               return;
@@ -191,8 +196,8 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
           originalFunc(...args);
       };
 
-      console.log = (...args) => filterMediaPipeLogs(originalConsoleLog, ...args);
-      console.warn = (...args) => filterMediaPipeLogs(originalConsoleWarn, ...args);
+      console.log = (...args: unknown[]) => filterMediaPipeLogs(originalConsoleLog, ...args);
+      console.warn = (...args: unknown[]) => filterMediaPipeLogs(originalConsoleWarn, ...args);
 
       try {
         const vision = await FilesetResolver.forVisionTasks(
@@ -380,7 +385,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
 
     let analysisInterval: ReturnType<typeof setInterval> | null = null;
     if (state.isMatchPlaying) {
-        const interval = isAdvancedAnalysisEnabled ? 20000 : 15000;
+        const interval = isAdvancedAnalysisEnabled ? 2000 : 15000;
         analysisInterval = setInterval(analyzeFrame, interval);
     }
 
@@ -453,7 +458,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
                 dispatch({ type: 'ADD_HEATMAP_POINTS', payload: { home: homePoints, away: awayPoints } });
             }
 
-        }, 2000); // Collect data every 2 seconds
+        }, 500); // Collect data every 0.5 seconds
     }
 
     return () => {
@@ -561,7 +566,8 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
         try {
             const base64Audio = await generateSpeech(state.commentary, state.commentaryStyle, state.lastEventExcitement);
              if (!outputAudioContextRef.current) {
-                outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+                const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+                outputAudioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
             }
             const audioContext = outputAudioContextRef.current;
             if (audioContext.state === 'suspended') await audioContext.resume();
@@ -656,29 +662,29 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
                 const now = Date.now();
                 if (now - lastCameraSwitchTimeRef.current > MIN_TIME_BETWEEN_SWITCHES) {
                     let newCamera: string;
-                    switch (zone) {
-                        case 'goal_a':
-                            newCamera = 'Goal Cam A'; // Zoom in on goalmouth action
-                            break;
-                        case 'goal_b':
-                            newCamera = 'Goal Cam B'; // Zoom in on goalmouth action
-                            break;
-                        case 'midfield':
-                            // If clustered in midfield, use a wider tactical view. Otherwise, use main cam.
-                            newCamera = isClustered ? 'Tactical Cam' : 'Main Cam';
-                            break;
-                        default:
-                            newCamera = 'Main Cam';
+                    
+                    // If players are highly clustered (e.g., around the ball or a key player)
+                    if (isClustered && n <= 3) {
+                        newCamera = 'Player Cam'; // Zoom on key players
+                    } else if (zone === 'goal_a') {
+                        newCamera = 'Goal Cam A'; // Focus on goalmouth action
+                    } else if (zone === 'goal_b') {
+                        newCamera = 'Goal Cam B'; // Focus on goalmouth action
+                    } else if (zone === 'midfield') {
+                        // If players are spread out, use tactical overview. If clustered, focus on the action (ball).
+                        newCamera = isClustered ? 'Action Cam' : 'Tactical Cam';
+                    } else {
+                        newCamera = 'Main Cam';
                     }
 
                     if (newCamera !== state.activeCamera) {
-                        console.log(`AI Director: Switching to ${newCamera} (Zone: ${zone}, Clustered: ${isClustered}, StdDevX: ${stdDevX.toFixed(1)}, StdDevY: ${stdDevY.toFixed(1)})`);
+                        console.log(`AI Director: Switching to ${newCamera} (Zone: ${zone}, Clustered: ${isClustered}, Players: ${n}, StdDevX: ${stdDevX.toFixed(1)}, StdDevY: ${stdDevY.toFixed(1)})`);
                         dispatch({ type: 'SET_AUTO_CAMERA', payload: newCamera });
                         lastCameraSwitchTimeRef.current = now;
                     }
                 }
             }
-        }, 2000); // Analyze every 2 seconds
+        }, 500); // Analyze every 0.5 seconds
     }
 
     return () => {
@@ -699,6 +705,37 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
   const toggleFormationDisplay = () => setShowFormationDisplay(prev => !prev);
 
 
+  const replayVideoRef = useRef<HTMLVideoElement>(null);
+  const varCheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup object URL on unmount or URL change
+  useEffect(() => {
+    const currentVideo = replayVideoRef.current;
+    return () => {
+      if (replayState.url) {
+        URL.revokeObjectURL(replayState.url);
+      }
+      if (currentVideo) {
+        currentVideo.pause();
+        currentVideo.src = "";
+        currentVideo.load();
+      }
+    };
+  }, [replayState.url]);
+
+  // Cleanup VAR check object URL on unmount or URL change
+  useEffect(() => {
+    const currentVarUrl = state.varCheck?.videoUrl;
+    return () => {
+      if (currentVarUrl) {
+        URL.revokeObjectURL(currentVarUrl);
+      }
+      if (varCheckTimeoutRef.current) {
+        clearTimeout(varCheckTimeoutRef.current);
+      }
+    };
+  }, [state.varCheck?.videoUrl]);
+
   const handleTriggerReplay = useCallback(async () => {
     if (replayState.isReplaying) return; // Don't trigger a replay if one is already playing
 
@@ -716,12 +753,39 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
   }, [replayState.isReplaying, state.adBanner]);
 
   const handleReplayEnd = () => {
-    if (replayState.url) {
-        URL.revokeObjectURL(replayState.url);
-    }
     setReplayState({ isReplaying: false, url: null });
     if (state.adBanner) {
         setIsAdShowing(false);
+    }
+  };
+
+  const formatTime = (timeInSeconds: number) => {
+    const m = Math.floor(timeInSeconds / 60).toString().padStart(2, '0');
+    const s = Math.floor(timeInSeconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  const handleReplayTimeUpdate = () => {
+    if (replayVideoRef.current) {
+      setReplayCurrentTime(replayVideoRef.current.currentTime);
+    }
+  };
+
+  const handleReplayLoadedMetadata = () => {
+    if (replayVideoRef.current) {
+      setReplayDuration(replayVideoRef.current.duration);
+    }
+  };
+
+  const toggleReplayPlayPause = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (replayVideoRef.current) {
+      if (replayIsPlaying) {
+        replayVideoRef.current.pause();
+      } else {
+        replayVideoRef.current.play();
+      }
+      setReplayIsPlaying(!replayIsPlaying);
     }
   };
   
@@ -752,16 +816,47 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
         details: event.type
     });
 
+    if (varCheckTimeoutRef.current) {
+        clearTimeout(varCheckTimeoutRef.current);
+        varCheckTimeoutRef.current = null;
+    }
+
     try {
-        const frameBlob = await recorderService.getReplayBlob(); // using replay blob as a source for a frame
-        const base64Frame = await blobToBase64(frameBlob);
+        let base64Frame = '';
+        if (canvasRef.current && videoRef.current) {
+            const canvas = canvasRef.current;
+            const video = videoRef.current;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                base64Frame = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+            }
+        }
+
+        if (!base64Frame) {
+            throw new Error("Could not capture frame for analysis.");
+        }
+
         const result = await analyzeRefereeDecision(base64Frame, event, state);
         dispatch({ type: 'SET_VAR_ANALYSIS', payload: { analysis: result.reasoning, recommendation: result.recommendation } });
-    } catch (e: any) {
+        
+        // Automatically close the overlay after 10 seconds
+        varCheckTimeoutRef.current = setTimeout(() => {
+            dispatch({ type: 'CLEAR_VAR_CHECK' });
+        }, 10000);
+    } catch (e: unknown) {
         console.error("VAR analysis failed:", e);
-        dispatch({ type: 'SET_VAR_ANALYSIS', payload: { analysis: e.message, recommendation: 'Undetermined' } });
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        dispatch({ type: 'SET_VAR_ANALYSIS', payload: { analysis: errorMessage, recommendation: 'Undetermined' } });
+        
+        // Automatically close the overlay after 5 seconds on error
+        varCheckTimeoutRef.current = setTimeout(() => {
+            dispatch({ type: 'CLEAR_VAR_CHECK' });
+        }, 5000);
     }
-  }, [isOnline, state, dispatch, processGameEventWithCommentary]);
+  }, [isOnline, state, dispatch, processGameEventWithCommentary, videoRef]);
   
   const toggleStats = () => setShowStats(!showStats);
   const togglePlayerStats = () => setShowPlayerStats(!showPlayerStats);
@@ -938,15 +1033,18 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
     <div className="relative w-screen h-screen bg-black overflow-hidden">
       <video
         ref={videoRef}
-        className={`absolute top-0 left-0 w-full h-full object-cover transition-all duration-500 ${replayState.isReplaying ? 'filter grayscale opacity-50 scale-100' : 'scale-100'} ${cameraState !== 'active' ? 'bg-gray-800' : ''}`}
+        className={`absolute top-0 left-0 w-full h-full object-cover transition-all duration-500 ${replayState.isReplaying ? 'filter grayscale opacity-50 scale-100' : 'scale-100'} ${cameraState !== 'active' ? 'bg-slate-950' : ''}`}
         autoPlay
         playsInline
         muted
         crossOrigin="anonymous"
       />
       
+      {/* Futuristic Scanline Effect */}
+      <div className="scanline"></div>
+      
       {cameraState !== 'active' && (
-        <div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-20">
+        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-20">
             {renderCameraOverlay()}
         </div>
       )}
@@ -1005,17 +1103,17 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
             />
           )}
 
-          <div key={state.activeCamera} className="absolute top-4 right-1/2 translate-x-1/2 md:right-auto md:left-1/2 md:-translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-sm font-bold animate-fade-in-fast flex items-center gap-2 z-10">
-              <CameraIcon className="w-5 h-5" />
-              <span className="uppercase tracking-wider">{state.activeCamera}</span>
-              {state.isAutoCameraOn && <BrainIcon className="w-5 h-5 text-cyan-400 animate-pulse" />}
+          <div key={state.activeCamera} className="absolute top-4 right-1/2 translate-x-1/2 md:right-auto md:left-1/2 md:-translate-x-1/2 glass-panel neon-border-cyan text-white px-4 py-1.5 rounded-full text-xs font-display tracking-widest animate-fade-in-fast flex items-center gap-2 z-10">
+              <CameraIcon className="w-4 h-4 neon-text-cyan" />
+              <span className="uppercase">{state.activeCamera}</span>
+              {state.isAutoCameraOn && <BrainIcon className="w-4 h-4 text-neon-cyan animate-pulse" />}
           </div>
           
           {showBottomScore && (
-              <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-black bg-opacity-70 px-8 py-2 rounded-full text-2xl font-bold animate-fade-in-up">
-                  <span>{state.homeTeam.name} </span>
-                  <span className="text-yellow-400">{state.homeStats.goals} - {state.awayStats.goals}</span>
-                  <span> {state.awayTeam.name}</span>
+              <div className="absolute bottom-24 left-1/2 -translate-x-1/2 glass-panel neon-border-cyan px-10 py-3 rounded-xl text-2xl font-display animate-fade-in-up">
+                  <span className="text-white/80">{state.homeTeam.name} </span>
+                  <span className="text-neon-cyan font-black mx-2">{state.homeStats.goals} - {state.awayStats.goals}</span>
+                  <span className="text-white/80"> {state.awayTeam.name}</span>
               </div>
           )}
           
@@ -1024,17 +1122,36 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
           <PollOverlay />
 
           {replayState.isReplaying && replayState.url && (
-              <div className="absolute inset-0 flex items-center justify-center z-40 animate-fade-in">
-                  <div className="relative w-11/12 h-11/12 max-w-4xl max-h-[80vh]">
+              <div className="absolute inset-0 flex items-center justify-center z-40 animate-fade-in bg-black/80">
+                  <div className="relative w-11/12 h-11/12 max-w-4xl max-h-[80vh] group">
                       <video
+                          ref={replayVideoRef}
                           key={replayState.url}
                           src={replayState.url}
                           autoPlay
                           onEnded={handleReplayEnd}
-                          className="w-full h-full object-contain rounded-lg shadow-2xl"
+                          onTimeUpdate={handleReplayTimeUpdate}
+                          onLoadedMetadata={handleReplayLoadedMetadata}
+                          onPlay={() => setReplayIsPlaying(true)}
+                          onPause={() => setReplayIsPlaying(false)}
+                          onClick={toggleReplayPlayPause}
+                          className="w-full h-full object-contain rounded-lg shadow-2xl cursor-pointer"
                       />
                       <div className="absolute top-4 left-4 bg-blue-600 text-white px-4 py-2 text-2xl font-extrabold tracking-widest rounded-lg shadow-2xl animate-fade-in-fast">
                           INSTANT REPLAY
+                      </div>
+                      
+                      {/* Controls Overlay */}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-b-lg flex items-center gap-4">
+                          <button onClick={toggleReplayPlayPause} className="text-white hover:text-blue-400 transition">
+                              {replayIsPlaying ? <PauseIcon className="w-8 h-8" /> : <PlayIcon className="w-8 h-8" />}
+                          </button>
+                          <div className="text-white font-mono text-sm">
+                              {formatTime(replayCurrentTime)} / {formatTime(replayDuration)}
+                          </div>
+                          <button onClick={handleReplayEnd} className="ml-auto bg-red-600 hover:bg-red-700 text-white px-4 py-1 rounded font-bold text-sm transition">
+                              Close
+                          </button>
                       </div>
                   </div>
               </div>
@@ -1058,6 +1175,21 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
           />
           {isTacticsBoardVisible && <TacticalBoard videoRef={videoRef} onClose={toggleTacticsBoard} />}
 
+          {showHeatmap && (
+              <div className="absolute top-20 right-4 w-64 h-96 z-30 bg-black/80 p-2 rounded-lg shadow-2xl border border-gray-700 animate-fade-in">
+                  <div className="flex justify-between items-center mb-2">
+                      <h3 className="text-white text-sm font-bold">Player Heatmap</h3>
+                      <button onClick={() => setShowHeatmap(false)} className="text-gray-400 hover:text-white">✕</button>
+                  </div>
+                  <div className="w-full h-[calc(100%-2rem)] relative">
+                      <HeatmapDisplay 
+                          points={[...state.heatmapData.home, ...state.heatmapData.away]} 
+                          color="#ffeb3b" 
+                      />
+                  </div>
+              </div>
+          )}
+
           <ControlPanel 
             toggleAd={toggleAd} 
             toggleReplay={handleTriggerReplay} 
@@ -1080,6 +1212,8 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
             onManualTacticsFetch={handleTacticsFetch}
             isFetchingSuggestion={isFetchingSuggestion}
             onTriggerVarCheck={handleTriggerVarCheck}
+            showHeatmap={showHeatmap}
+            toggleHeatmap={() => setShowHeatmap(prev => !prev)}
           />
 
           {isAdShowing && state.adBanner && <AdBanner imageUrl={state.adBanner} />}

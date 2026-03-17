@@ -1,14 +1,14 @@
 import { GoogleGenAI, Type, Modality, GenerateContentResponse, GenerateImagesResponse } from "@google/genai";
-import type { GameEvent, MatchState, Point, CommentaryStyle, CommentaryExcitement, Player, Team, AiDrawing, TacticalSuggestion, CommentaryLanguage, WinProbability, Highlight, SocialPostEvent, MatchPeriod } from '../types';
+import type { GameEvent, MatchState, CommentaryStyle, CommentaryExcitement, Player, Team, TacticalSuggestion, CommentaryLanguage, WinProbability, Highlight, SocialPostEvent } from '../types';
 import { PoseLandmarker, DrawingUtils } from '@mediapipe/tasks-vision';
 
-declare var process: {
+declare const process: {
   env: {
     API_KEY: string;
   }
 };
 
-const handleApiError = (error: any) => {
+const handleApiError = (error: unknown) => {
   if (error instanceof Error && (error.message.includes("API key not valid") || error.message.includes("Requested entity was not found"))) {
     console.error("API Key Error Detected. Dispatching event to reset key selection.");
     window.dispatchEvent(new CustomEvent('invalid-api-key'));
@@ -173,8 +173,6 @@ export const generateSpeech = async (text: string, style: CommentaryStyle, excit
     }
     throw new Error('generateSpeech did not return a value.');
 };
-
-const formatPoint = (p: Point | undefined) => p ? `(${p.x.toFixed(2)}%, ${p.y.toFixed(2)}%)` : 'Not mapped';
 
 export const analyzeVideoFrame = async (base64Frame: string, matchState: MatchState): Promise<GameEvent | null> => {
     if (!navigator.onLine) return null;
@@ -344,7 +342,7 @@ export const advancedFrameAnalysis = async (
         ...awayTeam.players.filter(p => p.photo)
     ];
 
-    const parts: any[] = [
+    const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = [
         { text: `
 You are a world-class football (soccer) analyst and AI expert. Your task is to analyze a video frame from a match to identify a key game event and the specific player involved.
 
@@ -784,7 +782,7 @@ export const generateMatchSummary = async (matchState: MatchState): Promise<stri
 export const selectPlayerOfTheMatch = async (matchState: MatchState): Promise<{ player: Player, team: 'home' | 'away', reasoning: string }> => {
     if (!navigator.onLine) throw new Error("Feature unavailable offline.");
     const model = 'gemini-2.5-flash';
-    const { homeTeam, awayTeam, homeStats, awayStats, events, leagueName, venue } = matchState;
+    const { homeTeam, awayTeam, homeStats, awayStats, leagueName, venue } = matchState;
 
     const allPlayersWithStats = [
         ...homeTeam.players.map(p => ({ ...p, teamName: homeTeam.name })),
@@ -1068,9 +1066,10 @@ export const validateApiKey = async (): Promise<{ isValid: boolean; error?: stri
         contents: 'test'
       });
       return { isValid: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("API Key validation failed:", error);
-      if (error.message.includes("API key not valid") || error.message.includes("Requested entity was not found") || error.message.includes("permission")) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("API key not valid") || errorMessage.includes("Requested entity was not found") || errorMessage.includes("permission")) {
           return { isValid: false, error: "The selected API key is not valid or lacks permissions. Please select a key from a Google Cloud project with billing enabled and the Gemini API active." };
       }
       return { isValid: false, error: "An unexpected error occurred during key validation. Check your network connection." };

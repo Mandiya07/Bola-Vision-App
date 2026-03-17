@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useMatchContext } from '../context/MatchContext';
 import { useProContext } from '../context/ProContext';
 import { generateMatchSummary, selectPlayerOfTheMatch, generateHighlightReelSequence } from '../services/geminiService';
-import { getDecryptedBlobById } from '../services/storageService';
 import { uploadHighlight } from '../services/publishService';
 import type { GameEvent, Highlight, PenaltyAttempt, Team } from '../types';
 import { GoalIcon, YellowCardIcon, RedCardIcon, SubstitutionIcon, TrophyIcon, CheckCircleIcon, XCircleIcon, MedicalIcon, FilmReelIcon, ShareIcon, CloudUploadIcon } from './icons/ControlIcons';
@@ -17,10 +16,11 @@ interface PostMatchScreenProps {
 }
 
 const StatDisplay: React.FC<{ label: string; homeValue: string | number; awayValue: string | number }> = ({ label, homeValue, awayValue }) => (
-    <div className="flex justify-between items-center bg-gray-800/50 p-3 rounded-lg text-lg">
-        <span className="font-bold">{homeValue}</span>
-        <span className="text-gray-300 text-sm uppercase">{label}</span>
-        <span className="font-bold">{awayValue}</span>
+    <div className="flex justify-between items-center glass-panel border-white/5 p-4 rounded-xl text-lg relative overflow-hidden group">
+        <div className="absolute inset-0 bg-gradient-to-r from-neon-cyan/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        <span className="font-display font-black italic text-white z-10">{homeValue}</span>
+        <span className="text-white/40 text-[10px] font-display font-bold uppercase tracking-[0.3em] z-10">{label}</span>
+        <span className="font-display font-black italic text-white z-10">{awayValue}</span>
     </div>
 );
 
@@ -88,15 +88,18 @@ const EventTimeline: React.FC = () => {
     );
     
     return (
-        <div className="w-full max-w-md mx-auto bg-black/30 p-4 rounded-lg space-y-2 max-h-48 overflow-y-auto">
+        <div className="w-full max-w-md mx-auto glass-panel border-white/5 p-6 rounded-2xl space-y-3 max-h-64 overflow-y-auto scrollbar-hide relative">
+            <div className="absolute left-8 top-0 bottom-0 w-px bg-white/10" />
             {keyEvents.map(event => (
-                <div key={event.id} className="flex items-center gap-3 text-white text-sm">
-                    <span className="font-bold w-10 text-center">{Math.floor(event.matchTime / 60)}'</span>
-                    <span className="w-6 flex-shrink-0 flex items-center justify-center">{getEventIcon(event.type)}</span>
-                    <span className="flex-1 truncate">{getEventText(event)}</span>
+                <div key={event.id} className="flex items-center gap-4 text-white group">
+                    <span className="font-display font-black text-xs w-10 text-center text-white/40 group-hover:text-neon-cyan transition-colors">{Math.floor(event.matchTime / 60)}'</span>
+                    <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center z-10 group-hover:border-neon-cyan transition-all shadow-[0_0_10px_rgba(255,255,255,0.05)]">
+                      {getEventIcon(event.type)}
+                    </div>
+                    <span className="flex-1 truncate font-body text-sm tracking-wide group-hover:translate-x-1 transition-transform">{getEventText(event)}</span>
                 </div>
             ))}
-            {keyEvents.length === 0 && <p className="text-gray-400 text-center">No key events were logged.</p>}
+            {keyEvents.length === 0 && <p className="text-white/30 text-center font-display font-bold text-[10px] uppercase tracking-widest py-8">No key events recorded</p>}
         </div>
     );
 };
@@ -179,8 +182,7 @@ const PostMatchScreen: React.FC<PostMatchScreenProps> = ({ onReturnToSetup }) =>
     const [isReelLoading, setIsReelLoading] = useState(false);
     const [reelError, setReelError] = useState('');
 
-    const { homeTeam, awayTeam, homeStats, awayStats, penaltyShootout, officials, leagueName, matchDate, venue, highlightReel } = state;
-    const formattedDate = matchDate ? new Date(matchDate).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+    const { homeTeam, awayTeam, homeStats, awayStats, penaltyShootout, officials, leagueName, venue, highlightReel } = state;
 
 
     useEffect(() => {
@@ -443,60 +445,93 @@ const PostMatchScreen: React.FC<PostMatchScreenProps> = ({ onReturnToSetup }) =>
     const TabButton: React.FC<{tab: PostMatchTab, label: string}> = ({ tab, label }) => (
         <button
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm md:text-base font-bold rounded-t-lg transition-colors border-b-4 ${activeTab === tab ? 'bg-gray-800/50 border-yellow-400 text-white' : 'border-transparent text-gray-400 hover:bg-gray-700/50 hover:text-white'}`}
+            className={`px-6 py-3 text-xs md:text-sm font-display font-black uppercase tracking-[0.2em] transition-all relative group ${activeTab === tab ? 'text-neon-cyan' : 'text-white/40 hover:text-white'}`}
         >
             {label}
+            {activeTab === tab && (
+              <div className="absolute bottom-0 left-0 w-full h-1 bg-neon-cyan shadow-[0_0_15px_rgba(0,243,255,0.5)] rounded-full" />
+            )}
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-1 bg-white/20 group-hover:w-full transition-all duration-300 rounded-full" />
         </button>
     );
 
     return (
-        <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 pitch-background animate-fade-in">
-            <div className="w-full max-w-6xl bg-gray-900/80 backdrop-blur-md rounded-xl shadow-2xl p-6 md:p-8 space-y-6">
-                <div className="text-center mb-4">
-                    <h1 className="text-4xl font-bold" style={{ color: '#00e676' }}>BolaVision</h1>
-                    <p className="text-gray-400 italic mt-2">{BOLA_VISION_TAGLINE}</p>
+        <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 pitch-background animate-fade-in relative overflow-hidden">
+            {/* Background decorative elements */}
+            <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+              <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-neon-cyan/5 blur-[120px] rounded-full" />
+              <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-neon-emerald/5 blur-[120px] rounded-full" />
+              <div className="scanline opacity-10" />
+            </div>
+
+            <div className="w-full max-w-6xl glass-panel border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] p-8 md:p-12 space-y-8 rounded-[3rem] relative z-10">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-4">
+                    <div className="flex flex-col items-center md:items-start">
+                        <h1 className="text-4xl font-display font-black text-neon-cyan uppercase tracking-tighter italic">BolaVision</h1>
+                        <p className="text-[10px] font-display font-bold text-white/30 uppercase tracking-[0.5em] mt-1">{BOLA_VISION_TAGLINE}</p>
+                    </div>
+                    <div className="px-6 py-2 glass-panel border-white/5 bg-white/5 rounded-2xl text-center">
+                        <p className="text-[10px] font-display font-bold text-white/40 uppercase tracking-[0.3em] mb-1">Match Session Log</p>
+                        <p className="text-sm font-display font-black text-white uppercase tracking-widest">{leagueName || 'Standard Protocol'}{venue && ` // ${venue}`}</p>
+                    </div>
                 </div>
-                <header className="text-center">
-                    <p className="text-lg font-semibold text-gray-300">{leagueName || 'Match Report'}{venue && ` | ${venue}`}{formattedDate && ` - ${formattedDate}`}</p>
-                    <h1 className="text-4xl font-extrabold text-yellow-300 tracking-wider uppercase">Full Time</h1>
-                     <div className="mt-4 flex justify-center items-center gap-4 text-3xl font-bold">
-                        <div className="flex items-center gap-3">
-                            {homeTeam.logo && <img src={homeTeam.logo} alt={homeTeam.name} className="w-12 h-12 object-contain" />}
-                            <span style={{ color: homeTeam.color || 'white' }}>{homeTeam.name}</span>
+
+                <header className="text-center relative">
+                    <div className="absolute top-1/2 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-y-1/2" />
+                    <h1 className="text-6xl md:text-8xl font-display font-black text-white uppercase tracking-tighter italic relative z-10 mix-blend-overlay opacity-20 select-none">FULL TIME</h1>
+                    <h1 className="text-4xl md:text-6xl font-display font-black text-white uppercase tracking-widest absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-full">FINAL RESULT</h1>
+                    
+                     <div className="mt-12 flex flex-col md:flex-row justify-center items-center gap-8 md:gap-16">
+                        <div className="flex flex-col items-center gap-4 group">
+                            <div className="relative">
+                              {homeTeam.logo && <img src={homeTeam.logo} alt={homeTeam.name} className="w-20 h-20 md:w-28 md:h-28 object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]" />}
+                              <div className="absolute -inset-4 border border-white/5 rounded-full animate-spin-slow opacity-20" />
+                            </div>
+                            <span className="text-xl font-display font-black uppercase tracking-widest" style={{ color: homeTeam.color || 'white' }}>{homeTeam.name}</span>
                         </div>
-                        <div className="bg-black/50 px-4 py-2 rounded-lg">
-                            {penaltyShootout && <span className="text-xl text-gray-300">({penaltyShootout.homeScore}) </span>}
-                            <span style={{ color: homeTeam.color || 'white' }}>{homeStats.goals}</span>
-                            <span className="mx-2 text-white">-</span>
-                            <span style={{ color: awayTeam.color || 'white' }}>{awayStats.goals}</span>
-                            {penaltyShootout && <span className="text-xl text-gray-300"> ({penaltyShootout.awayScore})</span>}
+
+                        <div className="relative flex flex-col items-center">
+                            <div className="glass-panel border-white/10 bg-black/40 px-10 py-6 rounded-[2rem] flex items-center gap-6 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+                                {penaltyShootout && <span className="text-2xl font-display font-bold text-white/30 italic">({penaltyShootout.homeScore})</span>}
+                                <span className="text-7xl font-display font-black italic" style={{ color: homeTeam.color || 'white', textShadow: `0 0 20px ${homeTeam.color || 'white'}80` }}>{homeStats.goals}</span>
+                                <span className="text-4xl font-light text-white/20">:</span>
+                                <span className="text-7xl font-display font-black italic" style={{ color: awayTeam.color || 'white', textShadow: `0 0 20px ${awayTeam.color || 'white'}80` }}>{awayStats.goals}</span>
+                                {penaltyShootout && <span className="text-2xl font-display font-bold text-white/30 italic">({penaltyShootout.awayScore})</span>}
+                            </div>
+                            {penaltyShootout?.winner && (
+                                <div className="absolute -bottom-4 bg-neon-cyan text-slate-950 px-4 py-1 rounded-full text-[10px] font-display font-black uppercase tracking-widest shadow-[0_0_15px_rgba(0,243,255,0.5)]">
+                                    {penaltyShootout.winner === 'home' ? homeTeam.name : awayTeam.name} Victory via Penalties
+                                </div>
+                            )}
                         </div>
-                        <div className="flex items-center gap-3">
-                            <span style={{ color: awayTeam.color || 'white' }}>{awayTeam.name}</span>
-                            {awayTeam.logo && <img src={awayTeam.logo} alt={awayTeam.name} className="w-12 h-12 object-contain" />}
+
+                        <div className="flex flex-col items-center gap-4 group">
+                            <div className="relative">
+                              {awayTeam.logo && <img src={awayTeam.logo} alt={awayTeam.name} className="w-20 h-20 md:w-28 md:h-28 object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]" />}
+                              <div className="absolute -inset-4 border border-white/5 rounded-full animate-spin-slow opacity-20" />
+                            </div>
+                            <span className="text-xl font-display font-black uppercase tracking-widest" style={{ color: awayTeam.color || 'white' }}>{awayTeam.name}</span>
                         </div>
                     </div>
-                     {penaltyShootout?.winner && (
-                        <p className="text-lg mt-2 font-semibold text-white">
-                            {penaltyShootout.winner === 'home' ? homeTeam.name : awayTeam.name} won on penalties.
-                        </p>
-                    )}
                 </header>
                 
-                <nav className="flex justify-center border-b border-gray-700">
+                <nav className="flex justify-center gap-2 md:gap-8 border-b border-white/5 pb-2">
                     <TabButton tab="overview" label="Overview" />
                     <TabButton tab="highlights" label="Highlights" />
                     <TabButton tab="analytics" label="Analytics" />
-                    <TabButton tab="report" label="AI Report" />
+                    <TabButton tab="report" label="Neural Report" />
                 </nav>
 
                 <main>
                     {renderContent()}
                 </main>
                 
-                <footer className="text-center pt-4">
-                    <button onClick={onReturnToSetup} className="bg-gray-600 hover:bg-gray-700 font-bold py-3 px-8 text-lg rounded-lg transition">
-                        Return to Main Menu
+                <footer className="text-center pt-8 border-t border-white/5">
+                    <button 
+                      onClick={onReturnToSetup} 
+                      className="glass-panel border-white/10 bg-white/5 hover:bg-white/10 text-white font-display font-black uppercase tracking-[0.3em] py-4 px-12 text-sm rounded-2xl transition-all hover:scale-105 hover:border-neon-cyan hover:text-neon-cyan shadow-xl"
+                    >
+                        Return to Command Center
                     </button>
                 </footer>
             </div>

@@ -13,6 +13,15 @@ const VarCheckOverlay: React.FC = () => {
             videoRef.current.load();
             videoRef.current.play().catch(e => console.error("Replay video failed to play:", e));
         }
+
+        const currentVideo = videoRef.current;
+        return () => {
+            if (currentVideo) {
+                currentVideo.pause();
+                currentVideo.src = "";
+                currentVideo.load();
+            }
+        };
     }, [state.varCheck?.videoUrl]);
 
     if (!state.varCheck) return null;

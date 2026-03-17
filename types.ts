@@ -1,4 +1,3 @@
-import type { Player as PlayerType } from "./types";
 export interface PlayerStats {
   goals: number;
   assists: number;

@@ -115,7 +115,7 @@ const matchReducer = (state: MatchState, action: MatchAction): MatchState => {
         let playerStatGraphic: MatchState['playerStatGraphic'] = null;
 
         // Update individual player stats
-        let updatedPlayers = [...state[teamKey].players];
+        const updatedPlayers = [...state[teamKey].players];
         if (playerNumber) {
             const playerIndex = updatedPlayers.findIndex(p => p.number === playerNumber);
             if (playerIndex > -1) {
@@ -341,7 +341,7 @@ const matchReducer = (state: MatchState, action: MatchAction): MatchState => {
             }
         }
         
-        let finalState: MatchState = { ...state, penaltyShootout: updatedShootout };
+        const finalState: MatchState = { ...state, penaltyShootout: updatedShootout };
         if (updatedShootout.winner) {
             finalState.matchPeriod = 'fullTime';
         }

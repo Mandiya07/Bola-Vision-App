@@ -1,6 +1,13 @@
 import React, { useEffect } from 'react';
 import { useMatchContext } from '../context/MatchContext';
 
+const ProbBar: React.FC<{ prob: number, color: string, label: string }> = ({ prob, color, label }) => (
+    <div className="flex flex-col items-center">
+        <span className="text-xs font-semibold text-gray-300">{label}</span>
+        <div className="text-2xl font-bold" style={{ color }}>{(prob * 100).toFixed(1)}%</div>
+    </div>
+);
+
 const GoalImpactOverlay: React.FC = () => {
     const { state, dispatch } = useMatchContext();
     const { goalImpactEvent } = state;
@@ -28,13 +35,6 @@ const GoalImpactOverlay: React.FC = () => {
 
     const impactSign = impact > 0 ? '+' : '';
     const impactColor = impact > 0 ? 'text-green-400' : 'text-red-400';
-    
-    const ProbBar: React.FC<{ prob: number, color: string, label: string }> = ({ prob, color, label }) => (
-        <div className="flex flex-col items-center">
-            <span className="text-xs font-semibold text-gray-300">{label}</span>
-            <div className="text-2xl font-bold" style={{ color }}>{(prob * 100).toFixed(1)}%</div>
-        </div>
-    );
 
     return (
         <div 

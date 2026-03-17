@@ -4,6 +4,21 @@ import HeatmapDisplay from './HeatmapDisplay';
 import ShotChart from './ShotChart';
 import { StarIcon } from './icons/ControlIcons';
 
+interface ShotChartLegendProps {
+    homeTeam: { name: string; color: string };
+    awayTeam: { name: string; color: string };
+}
+
+const ShotChartLegend: React.FC<ShotChartLegendProps> = ({ homeTeam, awayTeam }) => (
+    <div className="flex flex-col gap-2 mt-2 text-xs text-gray-300 bg-gray-900/50 p-3 rounded-lg">
+        <h4 className="text-base font-bold text-white text-center mb-1">Legend</h4>
+        <div className="flex items-center gap-2"><StarIcon className="w-4 h-4" style={{ color: homeTeam.color }} /> {homeTeam.name} Goal</div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full" style={{ backgroundColor: homeTeam.color }} /> {homeTeam.name} Shot</div>
+        <div className="flex items-center gap-2"><StarIcon className="w-4 h-4" style={{ color: awayTeam.color }} /> {awayTeam.name} Goal</div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full" style={{ backgroundColor: awayTeam.color }} /> {awayTeam.name} Shot</div>
+    </div>
+);
+
 const AdvancedAnalytics: React.FC = () => {
     const { state } = useMatchContext();
     const [view, setView] = useState<'heatmap' | 'shotChart'>('heatmap');
@@ -11,16 +26,6 @@ const AdvancedAnalytics: React.FC = () => {
 
     const { homeTeam, awayTeam, heatmapData } = state;
     const hasHeatmapData = heatmapData.home.length > 0 || heatmapData.away.length > 0;
-
-    const ShotChartLegend = () => (
-         <div className="flex flex-col gap-2 mt-2 text-xs text-gray-300 bg-gray-900/50 p-3 rounded-lg">
-            <h4 className="text-base font-bold text-white text-center mb-1">Legend</h4>
-            <div className="flex items-center gap-2"><StarIcon className="w-4 h-4" style={{color: homeTeam.color}} /> {homeTeam.name} Goal</div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full" style={{backgroundColor: homeTeam.color}} /> {homeTeam.name} Shot</div>
-            <div className="flex items-center gap-2"><StarIcon className="w-4 h-4" style={{color: awayTeam.color}} /> {awayTeam.name} Goal</div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full" style={{backgroundColor: awayTeam.color}} /> {awayTeam.name} Shot</div>
-        </div>
-    );
 
     return (
         <div className="flex flex-col items-center w-full">
@@ -93,7 +98,10 @@ const AdvancedAnalytics: React.FC = () => {
                     {view === 'shotChart' && (
                         <div className="flex flex-col items-center">
                             <h3 className="text-lg font-bold text-white mb-2">Shot Chart</h3>
-                            <ShotChartLegend />
+                            <ShotChartLegend 
+                                homeTeam={{ name: homeTeam.name, color: homeTeam.color || '#3b82f6' }} 
+                                awayTeam={{ name: awayTeam.name, color: awayTeam.color || '#ef4444' }} 
+                            />
                         </div>
                     )}
                 </div>

@@ -1,6 +1,6 @@
 
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import SetupScreen from './components/SetupScreen';
 import MatchScreen from './components/MatchScreen';
 import LineupScreen from './components/LineupScreen';
@@ -12,8 +12,8 @@ import SocialMediaModal from './components/SocialMediaModal';
 import ShareModal from './components/ShareModal';
 import { MatchContextProvider, useMatchContext } from './context/MatchContext';
 import { ProContextProvider, useProContext } from './context/ProContext';
-import type { Player, Team, MatchState, Monetization, CommentaryStyle, CommentaryLanguage, BroadcastStyle, Official, WeatherCondition } from './types';
-import { MailIcon, LockIcon, LogoutIcon } from './components/icons/ControlIcons';
+import type { Team, MatchState, Monetization, CommentaryStyle, CommentaryLanguage, BroadcastStyle, Official, WeatherCondition } from './types';
+import { MailIcon, LockIcon } from './components/icons/ControlIcons';
 import { decode } from './utils/mediaUtils';
 
 type MatchPhase = 'setup' | 'lineup' | 'calibration' | 'live' | 'postMatch';
@@ -250,8 +250,11 @@ const MainApplication: React.FC<MainApplicationProps> = ({ onLogout }) => {
 
 const App: React.FC = () => {
   const { setIsPro } = useProContext();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isGuest, setIsGuest] = useState(false);
 
-  const deepLinkData = useMemo(() => {
+  const deepLinkData = (() => {
     const urlParams = new URLSearchParams(window.location.search);
     const matchDataParam = urlParams.get('matchData');
     const isFanViewParam = urlParams.get('view');
@@ -268,7 +271,7 @@ const App: React.FC = () => {
       }
     }
     return null;
-  }, []);
+  })();
 
   if (deepLinkData) {
     return (
@@ -277,9 +280,6 @@ const App: React.FC = () => {
       </MatchContextProvider>
     );
   }
-
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isGuest, setIsGuest] = useState(false);
 
   const handleLogin = () => {
     setIsAuthenticated(true);
