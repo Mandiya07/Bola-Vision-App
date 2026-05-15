@@ -267,7 +267,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     !state.penaltyShootout;
 
   const renderPenaltyControls = () => (
-    <div className="space-y-2">
+    <div className="space-y-4">
       <p className="text-center font-bold text-yellow-400">
         {state.penaltyShootout?.winner
           ? `SHOOTOUT COMPLETE`
@@ -283,11 +283,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         onPlayerChange={setSelectedPlayer}
         disabled={!!state.penaltyShootout?.winner}
       />
-      <div className="grid grid-cols-3 gap-2">
-        <button onClick={() => handleLogEvent('PENALTY_SHOOTOUT_GOAL')} disabled={!selectedPlayer || !!state.penaltyShootout?.winner} className="font-bold p-3 rounded-lg transition bg-green-600 hover:bg-green-700 disabled:bg-gray-500">GOAL</button>
-        <button onClick={() => handleLogEvent('PENALTY_SHOOTOUT_MISS')} disabled={!selectedPlayer || !!state.penaltyShootout?.winner} className="font-bold p-3 rounded-lg transition bg-red-600 hover:bg-red-700 disabled:bg-gray-500">MISS</button>
-        <button onClick={() => handleLogEvent('PENALTY_SHOOTOUT_SAVE')} disabled={!selectedPlayer || !!state.penaltyShootout?.winner} className="font-bold p-3 rounded-lg transition bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500">SAVE</button>
-      </div>
+      <EventButtons 
+        onLogEvent={handleLogEvent} 
+        disabled={!selectedPlayer || !!state.penaltyShootout?.winner} 
+        canLogInjury={false} 
+        isPenaltyShootout={true} 
+      />
       {state.penaltyShootout?.winner && (
         <p className="text-center text-lg font-bold text-green-400 animate-pulse">
           {state.penaltyShootout.winner === 'home' ? state.homeTeam.name : state.awayTeam.name} wins the shootout!
@@ -333,7 +334,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       onClick={() => dispatch({ type: 'START_PENALTY_SHOOTOUT' })}
                       className="glass-panel neon-border-cyan text-neon-cyan font-display font-bold py-4 px-10 rounded-xl text-lg transition-all duration-500 hover:bg-neon-cyan/10 hover:shadow-[0_0_30px_rgba(0,243,255,0.3)] animate-pulse"
                     >
-                      INITIALIZE PENALTY PROTOCOL
+                      START PENALTY SHOOTOUT
                     </button>
                   </div>
                 )}
@@ -392,7 +393,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             <span className={`${tooltipClass} -translate-x-1/2 left-1/2`}>Neural Referee Verification</span>
                         </button>
                         <button onClick={handleSpotlight} disabled={!selectedPlayer || !isOnline || isSpotlightLoading} className={controlButtonClass}>
-                            {isSpotlightLoading ? <div className="w-5 h-5 border-2 border-neon-cyan border-t-transparent rounded-full animate-spin"></div> : <SpotlightIcon className="w-5 h-5 text-white/60 group-hover:text-neon-cyan"/>}
+                            {isSpotlightLoading ? <div className="w-5 h-5 border-2 border-neon-cyan border-t-transparent rounded-full animate-spin"></div> : <div className="relative"><SpotlightIcon className="w-5 h-5 text-white/60 group-hover:text-neon-cyan"/>{!isPro && <span className="absolute -top-1 -right-1 text-[8px] filter saturate-0 group-hover:saturate-100">🏆</span>}</div>}
                             <span>Spotlight</span>
                             <span className={`${tooltipClass} -translate-x-1/2 left-1/2`}>Targeted Performance Analysis</span>
                         </button>

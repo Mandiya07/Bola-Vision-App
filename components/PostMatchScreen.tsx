@@ -344,7 +344,16 @@ const PostMatchScreen: React.FC<PostMatchScreenProps> = ({ onReturnToSetup }) =>
                                     </button>
                                 </div>
                             ) : highlightReel ? (
-                                <HighlightReelPlayer reel={highlightReel} />
+                                <div className="space-y-4">
+                                    <HighlightReelPlayer reel={highlightReel} />
+                                    <button
+                                        onClick={() => dispatch({ type: 'OPEN_SOCIAL_MODAL', payload: { type: 'HIGHLIGHT' } })}
+                                        className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 flex items-center justify-center gap-2 mx-auto w-full md:w-auto"
+                                    >
+                                        <ShareIcon className="w-5 h-5" />
+                                        Share AI Reel to Social Media
+                                    </button>
+                                </div>
                             ) : (
                                 <>
                                     <button

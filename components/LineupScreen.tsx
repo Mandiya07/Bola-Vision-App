@@ -86,6 +86,7 @@ const TeamLineup: React.FC<TeamLineupProps> = ({ team, onPlayerPositionChange })
                 >
                     <div className="flex items-center gap-4">
                         <span className="font-display font-black w-8 text-center text-lg italic" style={{ color: team.color || '#FFFFFF' }}>{player.number}</span>
+                        {player.photo && <img src={player.photo} alt={player.name} className="w-8 h-8 rounded-full object-cover border border-white/10" />}
                         <span className="font-display font-bold text-white/80 group-hover:text-white transition-colors truncate uppercase tracking-tight">{player.name}</span>
                     </div>
                     <span className="text-[8px] font-display font-bold text-white/30 uppercase tracking-widest">{player.role}</span>

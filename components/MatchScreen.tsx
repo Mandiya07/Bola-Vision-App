@@ -56,27 +56,75 @@ const NetworkIndicator: React.FC = () => {
     );
 }
 
-const BreakOverlay: React.FC = () => {
+const BreakOverlay: React.FC<{
+    onEndMatch: () => void;
+    onStartSecondHalf: () => void;
+    onStartExtraTimeSecondHalf: () => void;
+    onStartExtraTime: () => void;
+    onStartPenaltyShootout: () => void;
+}> = ({
+    onEndMatch,
+    onStartSecondHalf,
+    onStartExtraTimeSecondHalf,
+    onStartExtraTime,
+    onStartPenaltyShootout
+}) => {
     const { state } = useMatchContext();
-    const { matchPeriod, homeStats, awayStats, homeTeam, awayTeam } = state;
+    const { matchPeriod, homeStats, awayStats, homeTeam, awayTeam, matchType, penaltyShootout } = state;
 
-    if (matchPeriod !== 'halfTime' && matchPeriod !== 'fullTime') {
+    if (matchPeriod !== 'halfTime' && matchPeriod !== 'fullTime' && matchPeriod !== 'extraTimeHalfTime') {
         return null;
     }
 
-    const title = matchPeriod === 'halfTime' ? 'HALF TIME' : 'FULL TIME';
+    const title = matchPeriod === 'halfTime' ? 'HALF TIME' : (matchPeriod === 'extraTimeHalfTime' ? 'ET HALF TIME' : 'FULL TIME');
     const analysisPeriod = matchPeriod === 'halfTime' ? 'First Half' : 'Full Match';
 
+    const isDraw = homeStats.goals === awayStats.goals;
+    const isKnockout = matchType === 'knockout';
+    const canStartPenaltyShootout = isKnockout && isDraw && !penaltyShootout;
+    const canStartExtraTime = isKnockout && isDraw && matchPeriod === 'fullTime' && (!state.events.some(e => e.type === 'GOAL' && e.matchTime > 90 * 60)); // Simple check if already played ET
+
     return (
-        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-40 animate-fade-in p-4">
-            <div className="text-center mb-6">
+        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-[60] animate-fade-in p-4 overflow-y-auto custom-scrollbar">
+            <div className="text-center mb-6 mt-8">
                 <h1 className="text-6xl md:text-8xl font-black uppercase tracking-widest text-white" style={{textShadow: '0 0 20px rgba(255,255,255,0.5)'}}>{title}</h1>
-                <div className="text-4xl md:text-5xl font-bold text-yellow-400 bg-black/50 px-6 py-3 rounded-lg">
+                <div className="text-4xl md:text-5xl font-bold text-yellow-400 bg-black/50 px-6 py-3 rounded-lg inline-flex items-center gap-4">
                     <span>{homeTeam.name.substring(0,3).toUpperCase()} </span>
                     <span>{homeStats.goals} - {awayStats.goals}</span>
                     <span> {awayTeam.name.substring(0,3).toUpperCase()}</span>
                 </div>
             </div>
+            
+            <div className="flex flex-wrap items-center justify-center gap-4 mb-8">
+                {matchPeriod === 'halfTime' && (
+                    <button onClick={onStartSecondHalf} className="bg-neon-cyan hover:bg-neon-cyan/80 text-black font-black uppercase tracking-widest py-3 px-8 rounded-full shadow-[0_0_20px_rgba(0,243,255,0.3)] transition-all transform hover:scale-105">
+                        Start 2nd Half
+                    </button>
+                )}
+                {matchPeriod === 'extraTimeHalfTime' && (
+                    <button onClick={onStartExtraTimeSecondHalf} className="bg-neon-cyan hover:bg-neon-cyan/80 text-black font-black uppercase tracking-widest py-3 px-8 rounded-full shadow-[0_0_20px_rgba(0,243,255,0.3)] transition-all transform hover:scale-105">
+                        Start ET 2nd Half
+                    </button>
+                )}
+                {matchPeriod === 'fullTime' && (
+                    <>
+                        <button onClick={onEndMatch} className="bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-widest py-3 px-8 rounded-full shadow-lg transition-all transform hover:scale-105">
+                            End Match
+                        </button>
+                        {canStartExtraTime && (
+                           <button onClick={onStartExtraTime} className="bg-neon-yellow hover:bg-yellow-400 text-black font-black uppercase tracking-widest py-3 px-8 rounded-full shadow-[0_0_20px_rgba(255,255,0,0.3)] transition-all transform hover:scale-105">
+                               Start Extra Time
+                           </button>
+                        )}
+                        {canStartPenaltyShootout && (
+                           <button onClick={onStartPenaltyShootout} className="bg-purple-600 hover:bg-purple-500 text-white font-black uppercase tracking-widest py-3 px-8 rounded-full shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all transform hover:scale-105">
+                               Start Penalties
+                           </button>
+                        )}
+                    </>
+                )}
+            </div>
+
             <HalfTimeAnalysis period={analysisPeriod} />
         </div>
     );
@@ -90,6 +138,9 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
   const [replayIsPlaying, setReplayIsPlaying] = useState(true);
   const [replayCurrentTime, setReplayCurrentTime] = useState(0);
   const [replayDuration, setReplayDuration] = useState(0);
+  const [showVolumeIndicator, setShowVolumeIndicator] = useState(false);
+  const [currentVolume, setCurrentVolume] = useState(1);
+  const touchStartRef = useRef<{ x: number, y: number, time: number, vol: number } | null>(null);
   const [showBottomScore, setShowBottomScore] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showPlayerStats, setShowPlayerStats] = useState(false);
@@ -125,6 +176,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
   const [currentPlayZone, setCurrentPlayZone] = useState<'midfield' | 'goal_a' | 'goal_b'>('midfield');
   const [consecutiveChecks, setConsecutiveChecks] = useState(0);
   const lastCameraSwitchTimeRef = useRef(0);
+  const previousCenterRef = useRef<{ x: number, y: number, time: number } | null>(null);
 
   const isOnline = useNetworkStatus();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -247,39 +299,53 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
   
   // Start replay buffering when camera is active
   useEffect(() => {
-    if (streamRef.current && cameraState === 'active' && !recorderService.isRecording()) {
-      recorderService.startReplayBuffering(streamRef.current);
+    try {
+      if (streamRef.current && cameraState === 'active' && !recorderService.isRecording()) {
+        recorderService.startReplayBuffering(streamRef.current);
+      }
+    } catch (e) {
+      console.error("Failed to start replay buffering:", e);
     }
     
     return () => {
         // Stop any active recorder on cleanup.
-        recorderService.stop();
+        try {
+          recorderService.stop();
+        } catch (e) {
+          console.error("Error stopping recorder:", e);
+        }
     }
   }, [cameraState, streamRef]);
 
 
   const handleToggleRecording = async () => {
-    if (recorderService.isRecording()) {
-        const videoBlob = await recorderService.stop();
-        if (videoBlob.size > 0) {
-            const matchName = `${state.homeTeam.name} vs ${state.awayTeam.name}`;
-            await saveVideoBlob(videoBlob, matchName);
-            const message = `Recording saved! (${(videoBlob.size / 1024 / 1024).toFixed(2)} MB)`;
-            setRecordingSaveMessage(message);
-            setTimeout(() => setRecordingSaveMessage(''), 4000);
-        }
-        setIsRecording(false);
-        // Restart replay buffering after full recording stops
-        if (streamRef.current) {
-            recorderService.startReplayBuffering(streamRef.current);
-        }
-    } else {
-        if (streamRef.current) {
-            const success = recorderService.startFullRecording(streamRef.current);
-            setIsRecording(success);
-        } else {
-            alert("Camera stream is not available to record.");
-        }
+    try {
+      if (recorderService.isRecording()) {
+          const videoBlob = await recorderService.stop();
+          if (videoBlob.size > 0) {
+              const matchName = `${state.homeTeam.name} vs ${state.awayTeam.name}`;
+              await saveVideoBlob(videoBlob, matchName);
+              const message = `Recording saved! (${(videoBlob.size / 1024 / 1024).toFixed(2)} MB)`;
+              setRecordingSaveMessage(message);
+              setTimeout(() => setRecordingSaveMessage(''), 4000);
+          }
+          setIsRecording(false);
+          // Restart replay buffering after full recording stops
+          if (streamRef.current) {
+              recorderService.startReplayBuffering(streamRef.current);
+          }
+      } else {
+          if (streamRef.current) {
+              const success = recorderService.startFullRecording(streamRef.current);
+              setIsRecording(success);
+          } else {
+              alert("Camera stream is not available to record.");
+          }
+      }
+    } catch (e) {
+      console.error("Recording error:", e);
+      alert("An error occurred while managing the recording.");
+      setIsRecording(false);
     }
   };
 
@@ -362,7 +428,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
         try {
             let detectedEvent = null;
             if (isAdvancedAnalysisEnabled && poseLandmarker) {
-                const videoTime = video.currentTime * 1000;
+                const videoTime = performance.now();
                 detectedEvent = await advancedFrameAnalysis(canvas, poseLandmarker, state, videoTime);
             } else {
                 const base64Frame = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
@@ -422,7 +488,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
             if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
 
             const video = videoRef.current;
-            const videoTime = video.currentTime * 1000;
+            const videoTime = performance.now();
             const poseResult = poseLandmarker.detectForVideo(video, videoTime);
 
             const homePoints: Point[] = [];
@@ -596,7 +662,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
             if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
 
             const video = videoRef.current;
-            const videoTime = video.currentTime * 1000;
+            const videoTime = performance.now();
             const poseResult = poseLandmarker.detectForVideo(video, videoTime);
 
             // Need at least 2 players for clustering analysis
@@ -629,6 +695,24 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
             const CLUSTER_THRESHOLD_Y = 25; // 25% of screen height
             const isClustered = stdDevX < CLUSTER_THRESHOLD_X && stdDevY < CLUSTER_THRESHOLD_Y;
 
+            // 2.5 Calculate Momentum (Velocity of centroid)
+            const nowTime = Date.now();
+            let velocityY = 0;
+            let velocityX = 0;
+            const prevCenter = previousCenterRef.current;
+            
+            if (prevCenter) {
+                const dt = (nowTime - prevCenter.time) / 1000; // in seconds
+                if (dt > 0) {
+                    velocityX = (avgX - prevCenter.x) / dt;
+                    velocityY = (avgY - prevCenter.y) / dt;
+                }
+            }
+            previousCenterRef.current = { x: avgX, y: avgY, time: nowTime };
+
+            // Detect rapid movement across the pitch (Fast Break)
+            const isFastBreak = Math.abs(velocityY) > 20 || Math.abs(velocityX) > 20;
+
             // 3. Determine zone of play based on the cluster's center
             let zone: 'midfield' | 'goal_a' | 'goal_b';
             const GOAL_AREA_Y_TOP = 30; // Top 30% of screen
@@ -659,18 +743,27 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
             }
 
             if (newConsecutiveChecks >= MIN_CHECKS_TO_SWITCH) {
+                const MathAbsV = Math.abs(velocityY) + Math.abs(velocityX);
                 const now = Date.now();
-                if (now - lastCameraSwitchTimeRef.current > MIN_TIME_BETWEEN_SWITCHES) {
+                if (now - lastCameraSwitchTimeRef.current > MIN_TIME_BETWEEN_SWITCHES || isFastBreak) {
                     let newCamera: string;
                     
-                    // If players are highly clustered (e.g., around the ball or a key player)
-                    if (isClustered && n <= 3) {
+                    // Priority 1: Fast break / Counter-attack
+                    if (isFastBreak) {
+                        newCamera = 'Action Cam'; // Follow fast break closely
+                    }
+                    // Priority 2: Highly clustered (e.g., around the ball or a key player set piece)
+                    else if (isClustered && n <= 4) {
                         newCamera = 'Player Cam'; // Zoom on key players
-                    } else if (zone === 'goal_a') {
-                        newCamera = 'Goal Cam A'; // Focus on goalmouth action
+                    } 
+                    // Priority 3: Goalmouth action
+                    else if (zone === 'goal_a') {
+                        newCamera = 'Goal Cam A';
                     } else if (zone === 'goal_b') {
-                        newCamera = 'Goal Cam B'; // Focus on goalmouth action
-                    } else if (zone === 'midfield') {
+                        newCamera = 'Goal Cam B';
+                    } 
+                    // Priority 4: Midfield tactical
+                    else if (zone === 'midfield') {
                         // If players are spread out, use tactical overview. If clustered, focus on the action (ball).
                         newCamera = isClustered ? 'Action Cam' : 'Tactical Cam';
                     } else {
@@ -678,7 +771,7 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
                     }
 
                     if (newCamera !== state.activeCamera) {
-                        console.log(`AI Director: Switching to ${newCamera} (Zone: ${zone}, Clustered: ${isClustered}, Players: ${n}, StdDevX: ${stdDevX.toFixed(1)}, StdDevY: ${stdDevY.toFixed(1)})`);
+                        console.log(`AI Director: Switching to ${newCamera} (Zone: ${zone}, FastBreak: ${isFastBreak}, Clustered: ${isClustered}, Velocity: ${MathAbsV.toFixed(1)})`);
                         dispatch({ type: 'SET_AUTO_CAMERA', payload: newCamera });
                         lastCameraSwitchTimeRef.current = now;
                     }
@@ -739,16 +832,21 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
   const handleTriggerReplay = useCallback(async () => {
     if (replayState.isReplaying) return; // Don't trigger a replay if one is already playing
 
-    const replayBlob = await recorderService.getReplayBlob();
-    if (replayBlob.size === 0) {
-        console.warn("Replay buffer is empty.");
-        return;
-    }
+    try {
+      const replayBlob = await recorderService.getReplayBlob();
+      if (replayBlob.size === 0) {
+          console.warn("Replay buffer is empty.");
+          return;
+      }
 
-    const url = URL.createObjectURL(replayBlob);
-    setReplayState({ isReplaying: true, url: url });
-    if (state.adBanner) {
-        setIsAdShowing(true);
+      const url = URL.createObjectURL(replayBlob);
+      setReplayState({ isReplaying: true, url: url });
+      if (state.adBanner) {
+          setIsAdShowing(true);
+      }
+    } catch (e) {
+      console.error("Failed to trigger replay:", e);
+      alert("Could not initialize replay. Please try again.");
     }
   }, [replayState.isReplaying, state.adBanner]);
 
@@ -777,16 +875,60 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
     }
   };
 
-  const toggleReplayPlayPause = (e: React.MouseEvent) => {
+  const toggleReplayPlayPause = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (replayVideoRef.current) {
-      if (replayIsPlaying) {
-        replayVideoRef.current.pause();
-      } else {
-        replayVideoRef.current.play();
+      try {
+        if (replayIsPlaying) {
+          replayVideoRef.current.pause();
+        } else {
+          await replayVideoRef.current.play();
+        }
+        setReplayIsPlaying(!replayIsPlaying);
+      } catch (err) {
+        console.error("Replay playback error:", err);
       }
-      setReplayIsPlaying(!replayIsPlaying);
     }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!replayVideoRef.current) return;
+    const touch = e.touches[0];
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: replayVideoRef.current.currentTime,
+      vol: replayVideoRef.current.volume
+    };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartRef.current || !replayVideoRef.current) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - touchStartRef.current.x;
+    const dy = touch.clientY - touchStartRef.current.y;
+
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+        // Horizontal scrub (swipe full width to scrub 100% of duration)
+        const scrubRatio = dx / width; 
+        const newTime = Math.max(0, Math.min(replayVideoRef.current.duration, touchStartRef.current.time + scrubRatio * replayVideoRef.current.duration));
+        replayVideoRef.current.currentTime = newTime;
+    } else {
+        // Vertical volume (swipe up half screen to go from 0 to 1)
+        const volRatio = -dy / (height / 2); 
+        const newVol = Math.max(0, Math.min(1, touchStartRef.current.vol + volRatio));
+        replayVideoRef.current.volume = newVol;
+        setCurrentVolume(newVol);
+        setShowVolumeIndicator(true);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchStartRef.current = null;
+    setTimeout(() => setShowVolumeIndicator(false), 2000);
   };
   
   const handleTriggerVarCheck = useCallback(async (event: GameEvent) => {
@@ -799,62 +941,71 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
         dispatch({ type: 'TOGGLE_PLAY' });
     }
 
-    const replayBlob = await recorderService.getReplayBlob();
-    if (replayBlob.size === 0) {
-        alert("Replay buffer is empty, cannot run VAR check.");
-        return;
-    }
-
-    const videoUrl = URL.createObjectURL(replayBlob);
-    dispatch({ type: 'START_VAR_CHECK', payload: { event, videoUrl } });
-    
-    processGameEventWithCommentary({
-        id: Date.now(),
-        type: 'VAR_CHECK',
-        teamName: event.teamName,
-        matchTime: state.matchTime,
-        details: event.type
-    });
-
-    if (varCheckTimeoutRef.current) {
-        clearTimeout(varCheckTimeoutRef.current);
-        varCheckTimeoutRef.current = null;
-    }
-
     try {
-        let base64Frame = '';
-        if (canvasRef.current && videoRef.current) {
-            const canvas = canvasRef.current;
-            const video = videoRef.current;
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                base64Frame = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+        const replayBlob = await recorderService.getReplayBlob();
+        if (replayBlob.size === 0) {
+            alert("Replay buffer is empty, cannot run VAR check.");
+            return;
+        }
+
+        const videoUrl = URL.createObjectURL(replayBlob);
+        dispatch({ type: 'START_VAR_CHECK', payload: { event, videoUrl } });
+        
+        const reviewDetails = event.playerName 
+            ? `${event.type} involving ${event.playerName} (#${event.playerNumber})`
+            : event.type;
+
+        processGameEventWithCommentary({
+            id: Date.now(),
+            type: 'VAR_CHECK',
+            teamName: event.teamName,
+            matchTime: state.matchTime,
+            details: reviewDetails
+        });
+
+        if (varCheckTimeoutRef.current) {
+            clearTimeout(varCheckTimeoutRef.current);
+            varCheckTimeoutRef.current = null;
+        }
+
+        try {
+            let base64Frame = '';
+            if (canvasRef.current && videoRef.current) {
+                const canvas = canvasRef.current;
+                const video = videoRef.current;
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    base64Frame = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+                }
             }
-        }
 
-        if (!base64Frame) {
-            throw new Error("Could not capture frame for analysis.");
-        }
+            if (!base64Frame) {
+                throw new Error("Could not capture frame for analysis.");
+            }
 
-        const result = await analyzeRefereeDecision(base64Frame, event, state);
-        dispatch({ type: 'SET_VAR_ANALYSIS', payload: { analysis: result.reasoning, recommendation: result.recommendation } });
-        
-        // Automatically close the overlay after 10 seconds
-        varCheckTimeoutRef.current = setTimeout(() => {
-            dispatch({ type: 'CLEAR_VAR_CHECK' });
-        }, 10000);
-    } catch (e: unknown) {
-        console.error("VAR analysis failed:", e);
-        const errorMessage = e instanceof Error ? e.message : String(e);
-        dispatch({ type: 'SET_VAR_ANALYSIS', payload: { analysis: errorMessage, recommendation: 'Undetermined' } });
-        
-        // Automatically close the overlay after 5 seconds on error
-        varCheckTimeoutRef.current = setTimeout(() => {
-            dispatch({ type: 'CLEAR_VAR_CHECK' });
-        }, 5000);
+            const result = await analyzeRefereeDecision(base64Frame, event, state);
+            dispatch({ type: 'SET_VAR_ANALYSIS', payload: { analysis: result.reasoning, recommendation: result.recommendation } });
+            
+            // Automatically close the overlay after 10 seconds
+            varCheckTimeoutRef.current = setTimeout(() => {
+                dispatch({ type: 'CLEAR_VAR_CHECK' });
+            }, 10000);
+        } catch (e: unknown) {
+            console.error("VAR analysis failed:", e);
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            dispatch({ type: 'SET_VAR_ANALYSIS', payload: { analysis: errorMessage, recommendation: 'Undetermined' } });
+            
+            // Automatically close the overlay after 5 seconds on error
+            varCheckTimeoutRef.current = setTimeout(() => {
+                dispatch({ type: 'CLEAR_VAR_CHECK' });
+            }, 5000);
+        }
+    } catch (err) {
+        console.error("VAR request preparation failed:", err);
+        alert("Failed to prepare VAR analysis.");
     }
   }, [isOnline, state, dispatch, processGameEventWithCommentary, videoRef]);
   
@@ -1080,7 +1231,19 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
           
           <NetworkIndicator />
           <SyncManager />
-          <BreakOverlay />
+          <BreakOverlay 
+            onEndMatch={() => setShowEndMatchConfirm(true)}
+            onStartSecondHalf={() => {
+                dispatch({ type: 'SET_MATCH_PERIOD', payload: 'secondHalf' });
+                dispatch({ type: 'TOGGLE_PLAY' });
+            }}
+            onStartExtraTimeSecondHalf={() => {
+                dispatch({ type: 'SET_MATCH_PERIOD', payload: 'extraTimeSecondHalf' });
+                dispatch({ type: 'TOGGLE_PLAY' });
+            }}
+            onStartExtraTime={() => dispatch({ type: 'START_EXTRA_TIME' })}
+            onStartPenaltyShootout={() => dispatch({ type: 'START_PENALTY_SHOOTOUT' })}
+          />
           <PenaltyShootoutOverlay />
           {state.varCheck?.isActive && <VarCheckOverlay />}
           {state.injuryStoppage && <InjuryOverlay injuryStoppage={state.injuryStoppage} onShowSubModal={() => setShowSubModal(true)} />}
@@ -1135,12 +1298,24 @@ const MatchScreen: React.FC<MatchScreenProps> = ({ onEndMatch }) => {
                           onPlay={() => setReplayIsPlaying(true)}
                           onPause={() => setReplayIsPlaying(false)}
                           onClick={toggleReplayPlayPause}
-                          className="w-full h-full object-contain rounded-lg shadow-2xl cursor-pointer"
+                          onTouchStart={handleTouchStart}
+                          onTouchMove={handleTouchMove}
+                          onTouchEnd={handleTouchEnd}
+                          className="w-full h-full object-contain rounded-lg shadow-2xl cursor-pointer touch-none"
                       />
                       <div className="absolute top-4 left-4 bg-blue-600 text-white px-4 py-2 text-2xl font-extrabold tracking-widest rounded-lg shadow-2xl animate-fade-in-fast">
                           INSTANT REPLAY
                       </div>
                       
+                      {showVolumeIndicator && (
+                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/60 text-white px-6 py-4 rounded-2xl flex flex-col items-center gap-2 animate-fade-in-fast pointer-events-none">
+                              <span className="font-display uppercase tracking-widest text-xs">Volume</span>
+                              <div className="w-32 h-2 bg-gray-600 rounded-full overflow-hidden">
+                                  <div className="h-full bg-neon-cyan transition-all duration-100" style={{ width: `${currentVolume * 100}%` }} />
+                              </div>
+                          </div>
+                      )}
+
                       {/* Controls Overlay */}
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-b-lg flex items-center gap-4">
                           <button onClick={toggleReplayPlayPause} className="text-white hover:text-blue-400 transition">

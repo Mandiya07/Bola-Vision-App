@@ -5,16 +5,22 @@ let isFullMatchRecordingActive = false;
 
 const REPLAY_BUFFER_DURATION_MS = 15000; // 15 seconds
 
-// Check for VP9 or VP8 support for better stability
-const vp9MimeType = 'video/webm; codecs="vp9"';
-const vp8MimeType = 'video/webm; codecs="vp8"';
-const webmMimeType = 'video/webm';
+// Priority-ordered codecs. VP9 and WebM are preferred over HEVC/MP4 for broader AI tool compatibility
+const mimeTypes = [
+    'video/webm; codecs="vp9"',
+    'video/webm; codecs="vp8"',
+    'video/webm',
+    'video/mp4; codecs="avc1"',
+    'video/mp4; codecs="hvc1"', // HEVC (Lower priority as requested)
+    'video/mp4'
+];
 
-let selectedMimeType = webmMimeType;
-if (MediaRecorder.isTypeSupported(vp9MimeType)) {
-    selectedMimeType = vp9MimeType;
-} else if (MediaRecorder.isTypeSupported(vp8MimeType)) {
-    selectedMimeType = vp8MimeType;
+let selectedMimeType = 'video/webm'; // Default fallback
+for (const type of mimeTypes) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) {
+        selectedMimeType = type;
+        break;
+    }
 }
 
 const options = {

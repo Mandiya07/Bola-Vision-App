@@ -292,6 +292,14 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onSetupComplete, onLoadMatch,
       }
     };
     
+  const handlePlayerPhotoRemove = (team: 'home' | 'away', playerNumber: number) => {
+      if (team === 'home') {
+          setHomePlayers(homePlayers.map(p => p.number === playerNumber ? { ...p, photo: '' } : p));
+      } else {
+          setAwayPlayers(awayPlayers.map(p => p.number === playerNumber ? { ...p, photo: '' } : p));
+      }
+  };
+
   const handlePlayerPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, team: 'home' | 'away', playerNumber: number) => {
       const file = e.target.files?.[0];
       if (file && file.type.startsWith('image/')) {
@@ -686,16 +694,25 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onSetupComplete, onLoadMatch,
                           {homePlayers.map(player => (
                             <div key={player.number} className="flex items-center justify-between glass-panel border-white/5 bg-white/5 p-2 px-4 rounded-xl group/item hover:border-neon-cyan/30 transition-all">
                               <div className="flex items-center gap-3">
-                                <label htmlFor={`photo-upload-home-${player.number}`} className="cursor-pointer group/photo relative">
-                                    {player.photo ? (
+                                {player.photo ? (
+                                    <div className="relative group/photo">
                                         <img src={player.photo} alt={player.name} className="w-8 h-8 rounded-full object-cover border border-white/10" />
-                                    ) : (
+                                        <button 
+                                            type="button" 
+                                            onClick={(e) => { e.preventDefault(); handlePlayerPhotoRemove('home', player.number); }}
+                                            className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 flex items-center justify-center text-[10px] text-white opacity-0 group-hover/photo:opacity-100 transition-opacity z-10"
+                                        >
+                                            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <label htmlFor={`photo-upload-home-${player.number}`} className="cursor-pointer group/photo relative">
                                         <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/20 group-hover/photo:text-neon-cyan transition-colors">
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                                         </div>
-                                    )}
-                                    <input id={`photo-upload-home-${player.number}`} type="file" accept="image/*" className="hidden" onChange={(e) => handlePlayerPhotoUpload(e, 'home', player.number)} />
-                                </label>
+                                        <input id={`photo-upload-home-${player.number}`} type="file" accept="image/*" className="hidden" onChange={(e) => handlePlayerPhotoUpload(e, 'home', player.number)} />
+                                    </label>
+                                )}
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-mono font-bold text-neon-cyan tracking-tighter">#{player.number}</span>
                                     <span className="text-sm font-display font-black text-white/80 uppercase tracking-tight truncate max-w-[120px]">{player.name}</span>
@@ -793,16 +810,25 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onSetupComplete, onLoadMatch,
                           {awayPlayers.map(player => (
                             <div key={player.number} className="flex items-center justify-between glass-panel border-white/5 bg-white/5 p-2 px-4 rounded-xl group/item hover:border-neon-emerald/30 transition-all">
                               <div className="flex items-center gap-3">
-                                <label htmlFor={`photo-upload-away-${player.number}`} className="cursor-pointer group/photo relative">
-                                    {player.photo ? (
+                                {player.photo ? (
+                                    <div className="relative group/photo">
                                         <img src={player.photo} alt={player.name} className="w-8 h-8 rounded-full object-cover border border-white/10" />
-                                    ) : (
+                                        <button 
+                                            type="button" 
+                                            onClick={(e) => { e.preventDefault(); handlePlayerPhotoRemove('away', player.number); }}
+                                            className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 flex items-center justify-center text-[10px] text-white opacity-0 group-hover/photo:opacity-100 transition-opacity z-10"
+                                        >
+                                            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <label htmlFor={`photo-upload-away-${player.number}`} className="cursor-pointer group/photo relative">
                                         <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/20 group-hover/photo:text-neon-emerald transition-colors">
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                                         </div>
-                                    )}
-                                    <input id={`photo-upload-away-${player.number}`} type="file" accept="image/*" className="hidden" onChange={(e) => handlePlayerPhotoUpload(e, 'away', player.number)} />
-                                </label>
+                                        <input id={`photo-upload-away-${player.number}`} type="file" accept="image/*" className="hidden" onChange={(e) => handlePlayerPhotoUpload(e, 'away', player.number)} />
+                                    </label>
+                                )}
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-mono font-bold text-neon-emerald tracking-tighter">#{player.number}</span>
                                     <span className="text-sm font-display font-black text-white/80 uppercase tracking-tight truncate max-w-[120px]">{player.name}</span>

@@ -11,7 +11,7 @@ interface SocialMediaModalProps {
     event: SocialPostEvent | null;
 }
 
-const getEventIcon = (type: GameEvent['type'] | 'FINAL_SCORE' | 'HALF_TIME') => {
+const getEventIcon = (type: GameEvent['type'] | 'FINAL_SCORE' | 'HALF_TIME' | 'HIGHLIGHT') => {
     switch (type) {
         case 'GOAL':
             return <GoalIcon className="w-5 h-5 text-yellow-300" />;
@@ -22,6 +22,8 @@ const getEventIcon = (type: GameEvent['type'] | 'FINAL_SCORE' | 'HALF_TIME') => 
         case 'FINAL_SCORE':
         case 'HALF_TIME':
             return <TrophyIcon className="w-5 h-5 text-gray-300" />
+        case 'HIGHLIGHT':
+            return <BrainIcon className="w-5 h-5 text-purple-400" />
         default:
             return null;
     }
@@ -30,6 +32,7 @@ const getEventIcon = (type: GameEvent['type'] | 'FINAL_SCORE' | 'HALF_TIME') => 
 const getEventTitle = (event: SocialPostEvent): string => {
     if ('type' in event && event.type === 'FINAL_SCORE') return "Final Score";
     if ('type' in event && event.type === 'HALF_TIME') return "Half Time Score";
+    if ('type' in event && event.type === 'HIGHLIGHT') return "AI Highlight Reel";
     return getEventDescription(event as GameEvent);
 };
 
@@ -57,9 +60,12 @@ const SocialMediaModal: React.FC<SocialMediaModalProps> = ({ isOpen, onClose, ev
         if (state.matchPeriod === 'halfTime') {
             specialEvents.push({ type: 'HALF_TIME' });
         }
+        if (state.highlightReel) {
+            specialEvents.push({ type: 'HIGHLIGHT' });
+        }
 
         return [...specialEvents, ...keyEvents];
-    }, [state.events, state.matchPeriod, state.penaltyShootout]);
+    }, [state.events, state.matchPeriod, state.penaltyShootout, state.highlightReel]);
 
     const handleEventSelect = async (event: SocialPostEvent) => {
         setSelectedEvent(event);

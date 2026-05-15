@@ -20,15 +20,24 @@ const FormationDisplay: React.FC<FormationDisplayProps> = ({ homeTeam, awayTeam,
     const PlayerMarker: React.FC<{ player: Player & { x?: number, y?: number }, color: string }> = ({ player, color }) => (
         <div 
             className="absolute flex flex-col items-center group"
-            style={{ top: `${player.y}%`, left: `${player.x}%`, transform: 'translate(-50%, -50%)' }}
+            style={{ top: `${player.y}%`, left: `${player.x}%`, transform: 'translate(-50%, -50%)', zIndex: 10 }}
         >
-            <div 
-                className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm text-white border-2 border-black/50 shadow-lg" 
-                style={{ backgroundColor: color }}
-            >
-                {player.number}
-            </div>
-            <div className="mt-1 px-2 py-0.5 bg-black/70 text-white text-xs rounded-md whitespace-nowrap">
+            {player.photo ? (
+                <div className="relative w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm text-white border-2 shadow-lg" style={{ borderColor: color, backgroundColor: color }}>
+                    <img src={player.photo} alt={player.name} className="w-full h-full object-cover rounded-full" />
+                    <div className="absolute -bottom-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white border border-black/50 shadow-sm" style={{ backgroundColor: color }}>
+                        {player.number}
+                    </div>
+                </div>
+            ) : (
+                <div 
+                    className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm text-white border-2 border-black/50 shadow-lg" 
+                    style={{ backgroundColor: color }}
+                >
+                    {player.number}
+                </div>
+            )}
+            <div className="mt-1 px-2 py-0.5 bg-black/80 text-white text-[10px] rounded leading-tight whitespace-nowrap shadow-md">
                 {player.name}
             </div>
         </div>

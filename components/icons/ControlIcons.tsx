@@ -371,3 +371,15 @@ export const GoalkeeperSaveIcon: React.FC<React.SVGProps<SVGSVGElement>> = (prop
     <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 16.5v2.25c0 .621.504 1.125 1.125 1.125h1.5c.621 0 1.125-.504 1.125-1.125v-2.25m-3.75 0V7.5a2.25 2.25 0 012.25-2.25h1.5a2.25 2.25 0 012.25 2.25v9" />
   </svg>
 );
+
+export const TackleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
+
+export const PassIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+  </svg>
+);

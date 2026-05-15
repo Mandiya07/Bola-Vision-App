@@ -257,22 +257,34 @@ export const analyzeRefereeDecision = async (base64Frame: string, event: GameEve
     const eventDescription = getEventDescription(event);
 
     const prompt = `
-        You are an expert Video Assistant Referee (VAR) for a football (soccer) match.
-        Analyze the provided video frame to make a crucial decision. Be objective and base your reasoning on the visual evidence.
+        You are a highly experienced Video Assistant Referee (VAR) in an elite football league.
+        Analyze the provided high-resolution video frame (frozen at the moment of the incident) to make a definitive decision.
+        Base your reasoning purely on the visual evidence shown.
 
-        Match Context:
-        - Home Team: ${homeTeam.name}
-        - Away Team: ${awayTeam.name}
-        - Score: ${homeStats.goals} - ${awayStats.goals}
-        - Incident under review: ${eventType} - ${eventDescription}
+        Incident for Review:
+        - Event Type: ${eventType}
+        - Incident Context: ${eventDescription}
+        - Teams Involved: ${homeTeam.name} vs ${awayTeam.name}
+        - Current Score: ${homeStats.goals} - ${awayStats.goals}
 
-        Task:
-        Review the image which captures the moment of the incident. Based ONLY on the visual evidence in this frame, provide your professional recommendation.
+        Specific Objective:
+        Confirm or overturn the initial decision for this ${eventType}. Look for clear and obvious errors. 
+        If it's a Goal review, check for the ball crossing the line or a preceding foul.
+        If it's a Penalty/Foul review, check for direct contact on the player vs contact on the ball.
+        If it's an Offside review, check the relative positions of the attackers and defenders.
 
-        Possible Recommendations: 'Foul', 'No Foul', 'Goal', 'No Goal', 'Offside', 'Onside', 'Yellow Card', 'Red Card', 'Play On', 'Undetermined'.
+        Analysis Criteria:
+        1. Point of contact (if applicable).
+        2. Position of the ball relative to lines.
+        3. Intent and severity (for card decisions).
 
-        Return your analysis as a JSON object with two keys: "recommendation" and "reasoning".
-        The reasoning should be a brief, clear explanation of your decision (e.g., "The defender's foot clearly contacts the ball before the attacker.").
+        Possible Recommendations: 'Goal', 'No Goal', 'Foul', 'No Foul', 'Penalty', 'No Penalty', 'Offside', 'Onside', 'Yellow Card', 'Red Card', 'Play On', 'Decision Stands', 'Undetermined'.
+
+        Return your analysis as a JSON object:
+        {
+            "recommendation": "One of the values above",
+            "reasoning": "Clear, concise technical explanation of the visual evidence found."
+        }
     `;
 
     try {
@@ -596,6 +608,9 @@ export const generateSocialMediaPost = async (event: SocialPostEvent, matchState
         if (event.type === 'HALF_TIME') {
             eventDescription = `It's half time! The score is ${homeTeam.name} ${homeStats.goals} - ${awayStats.goals} ${awayTeam.name}.`;
             tone = 'Informative';
+        } else if (event.type === 'HIGHLIGHT') {
+            eventDescription = `Check out the AI-generated highlight reel of the best moments from the match!`;
+            tone = 'Energetic';
         } else { // FINAL_SCORE
             let result = `${homeTeam.name} ${homeStats.goals} - ${awayStats.goals} ${awayTeam.name}.`;
             if (homeStats.goals > awayStats.goals) {
@@ -670,13 +685,18 @@ export const generateSocialMediaImage = async (event: SocialPostEvent, matchStat
             default:
                  eventDetails = `An action shot from a football match between ${homeTeam.name} and ${awayTeam.name}.`;
         }
-    } else { // Final or HT score
+    } else { // Final, HT score, or HIGHLIGHT
         if (event.type === 'FINAL_SCORE') {
             eventDetails = `A final score graphic for the match between ${homeTeam.name} and ${awayTeam.name}. Final Score: ${homeStats.goals} - ${awayStats.goals}.`;
-        } else {
+        } else if (event.type === 'HALF_TIME') {
             eventDetails = `A half time score graphic for the match between ${homeTeam.name} and ${awayTeam.name}. Half Time Score: ${homeStats.goals} - ${awayStats.goals}.`;
+        } else if (event.type === 'HIGHLIGHT') {
+            eventDetails = `A promotional graphic for the match highlight reel featuring ${homeTeam.name} vs ${awayTeam.name}.`;
+            stylePrompt = `An action-packed, fast-paced cinematic poster showing football action with neon light streaks to represent a video highlight reel.`;
         }
-        stylePrompt = `A clean, bold, and professional graphic design poster showing the match score. Use the team logos and names prominently.`
+        if (event.type !== 'HIGHLIGHT') {
+            stylePrompt = `A clean, bold, and professional graphic design poster showing the match score. Use the team logos and names prominently.`;
+        }
     }
 
     const prompt = `${eventDetails} The home team is ${homeTeam.name} (colors: ${homeTeam.color}) and the away team is ${awayTeam.name} (colors: ${awayTeam.color}). ${stylePrompt} The image should NOT contain any text, letters, or numbers.`;

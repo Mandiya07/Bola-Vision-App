@@ -1,5 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useMatchContext } from '../context/MatchContext';
+import { useProContext } from '../context/ProContext';
+import { generatePlayerSpotlightText } from '../services/geminiService';
+import { SpotlightIcon } from './icons/ControlIcons';
 import type { PlayerStats } from '../types';
 
 interface PlayerStatsOverlayProps {
@@ -15,9 +18,11 @@ const StatRow: React.FC<{ label: string; value: number }> = ({ label, value }) =
 );
 
 const PlayerStatsOverlay: React.FC<PlayerStatsOverlayProps> = ({ isVisible, onClose }) => {
-    const { state } = useMatchContext();
+    const { state, dispatch } = useMatchContext();
+    const { isPro, showUpgradeModal } = useProContext();
     const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isSpotlightLoading, setIsSpotlightLoading] = useState(false);
 
     const allPlayers = useMemo(() => [
         ...state.homeTeam.players.map(p => ({ ...p, team: state.homeTeam, side: 'home' })),
@@ -92,6 +97,41 @@ const PlayerStatsOverlay: React.FC<PlayerStatsOverlayProps> = ({ isVisible, onCl
                                     <StatRow key={statKey} label={statKey.replace(/([A-Z])/g, ' $1').toUpperCase()} value={selectedPlayer.stats[statKey]} />
                                 ))}
                             </div>
+
+                            <button
+                                onClick={async () => {
+                                    if (!isPro) {
+                                        showUpgradeModal();
+                                        return;
+                                    }
+                                    setIsSpotlightLoading(true);
+                                    try {
+                                        const analysis = await generatePlayerSpotlightText(selectedPlayer, selectedPlayer.team);
+                                        dispatch({ 
+                                            type: 'SHOW_KEY_PLAYER_SPOTLIGHT', 
+                                            payload: { 
+                                                player: selectedPlayer, 
+                                                team: selectedPlayer.side as 'home' | 'away', 
+                                                analysis 
+                                            } 
+                                        });
+                                        onClose();
+                                    } catch (e) {
+                                        console.error(e);
+                                    } finally {
+                                        setIsSpotlightLoading(false);
+                                    }
+                                }}
+                                disabled={isSpotlightLoading}
+                                className="mt-8 flex items-center gap-3 bg-neon-cyan/20 hover:bg-neon-cyan/30 text-neon-cyan border border-neon-cyan/40 px-8 py-3 rounded-xl font-display font-bold uppercase tracking-widest transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+                            >
+                                {isSpotlightLoading ? (
+                                    <div className="w-5 h-5 border-2 border-neon-cyan border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    <SpotlightIcon className="w-5 h-5" />
+                                )}
+                                <span>Neural Spotlight {!isPro && '🏆'}</span>
+                            </button>
                         </div>
                     ) : (
                         <div className="flex items-center justify-center h-full text-gray-500">

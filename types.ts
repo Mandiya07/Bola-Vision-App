@@ -124,7 +124,7 @@ export interface Poll {
   isLive: boolean; // false means show results
 }
 
-export type SocialPostEvent = GameEvent | { type: 'FINAL_SCORE' | 'HALF_TIME' };
+export type SocialPostEvent = GameEvent | { type: 'FINAL_SCORE' | 'HALF_TIME' | 'HIGHLIGHT' };
 
 export interface MatchState {
   homeTeam: Team;

@@ -109,6 +109,31 @@
           from { opacity: 1; }
           to { opacity: 0; }
       }
+      @keyframes scanline-infinite {
+        0% { top: -100%; }
+        100% { top: 100%; }
+      }
+      .animate-scanline-infinite {
+        position: absolute;
+        animation: scanline-infinite 4s linear infinite;
+        width: 100%;
+        z-index: 1;
+      }
+
+      @keyframes pulse-slow {
+        0%, 100% { opacity: 0.3; transform: scale(1); }
+        50% { opacity: 0.6; transform: scale(1.05); }
+      }
+      .animate-pulse-slow {
+        animation: pulse-slow 4s ease-in-out infinite;
+      }
+
+      .gradient-text-white {
+        background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
       .animate-fade-in {
         animation: fadeIn 0.5s ease-in-out;
       }
